@@ -1,0 +1,27 @@
+.DS_Store
+.idea/
+.vscode/
+.tools/
+tmp/
+
+# Secretos y configuraciones locales.
+.env
+.env.*
+!.env.example
+
+# Gradle / Kotlin.
+.gradle/
+.kotlin/
+build/
+**/build/
+local.properties
+/api
+/bpm-api
+
+# Certificados y credenciales.
+*.json.key
+*.pem
+*.p12
+*.jks
+*.keystore
+

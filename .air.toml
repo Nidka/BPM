@@ -1,0 +1,32 @@
+# Air is a local development tool. Railway and the production image do not use it.
+root = "."
+tmp_dir = "tmp/air"
+env_files = [".env"]
+
+[build]
+cmd = "go build -trimpath -o ./tmp/air/bpm-api ./cmd/api"
+entrypoint = ["./tmp/air/bpm-api"]
+include_dir = ["cmd", "internal"]
+include_ext = ["go"]
+exclude_dir = ["tmp", ".git", ".tools"]
+exclude_regex = ["_test\\.go"]
+exclude_unchanged = true
+delay = 300
+stop_on_error = true
+send_interrupt = true
+
+[log]
+time = true
+
+[color]
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"
+
+[misc]
+clean_on_exit = true
+
+[screen]
+clear_on_rebuild = false
+keep_scroll = true

@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: bpm
+      POSTGRES_USER: bpm
+      POSTGRES_PASSWORD: bpm_local_only
+      TZ: UTC
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - bpm_postgres_data:/var/lib/postgresql/data
+      - ./migraciones/V1__baseline.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bpm -d bpm"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  bpm_postgres_data:
+
