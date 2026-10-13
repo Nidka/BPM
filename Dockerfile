@@ -4,11 +4,10 @@ FROM golang:1.27.2-alpine AS build
 WORKDIR /src
 
 COPY go.mod go.sum ./
-RUN --mount=type=cache,id=bpm-go-mod,target=/go/pkg/mod go mod download
+RUN go mod download
 
 COPY . .
-RUN --mount=type=cache,id=bpm-go-build,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux go build \
+RUN CGO_ENABLED=0 GOOS=linux go build \
     -trimpath -ldflags="-s -w" -o /out/bpm-api ./cmd/api
 
 FROM gcr.io/distroless/static-debian12:nonroot
