@@ -13,6 +13,8 @@ tags:
     description: Estado y disponibilidad del servicio.
   - name: Identidad
     description: Sesión e identidad verificadas con Firebase.
+  - name: Organizaciones
+    description: Espacio de trabajo, sedes y equipo con permisos por organización.
 paths:
   /health:
     get:
@@ -130,7 +132,134 @@ paths:
           $ref: "#/components/responses/InternalError"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+  /api/v1/organizations:
+    get:
+      tags: [Organizaciones]
+      summary: Listar organizaciones activas autorizadas (máximo 100)
+      operationId: listOrganizations
+      security: [{FirebaseBearer: []}]
+      responses:
+        "200":
+          description: Solo membresías activas; SUPER_ADMIN puede consultar todas.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    maxItems: 100
+                    items: {$ref: "#/components/schemas/WorkspaceOrganization"}
+        default: {$ref: "#/components/responses/WorkspaceError"}
+    post:
+      tags: [Organizaciones]
+      summary: Crear organización (solo SUPER_ADMIN)
+      operationId: createOrganization
+      description: UUID generado por cliente; repetir el mismo ID y contenido no duplica. Otro contenido devuelve 409. Auditoría transaccional.
+      security: [{FirebaseBearer: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/WorkspaceOrganization"}
+      responses:
+        "200":
+          description: Creación o repetición idéntica confirmada.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {$ref: "#/components/schemas/WorkspaceOrganization"}
+        default: {$ref: "#/components/responses/WorkspaceError"}
+  /api/v1/organizations/{organizationID}/workspace:
+    parameters:
+      - {$ref: "#/components/parameters/OrganizationID"}
+    get:
+      tags: [Organizaciones]
+      summary: Consultar espacio de trabajo autorizado
+      operationId: getWorkspace
+      description: Sedes asignadas; miembros solo para ADMIN/SUPER_ADMIN. Catálogo publicado, plantillas activas e incidencias visibles. Cada lista limita a 100; no son totales globales. WORKER ve solo sus incidencias.
+      security: [{FirebaseBearer: []}]
+      responses:
+        "200":
+          description: Organización, rol y listas autorizadas.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {$ref: "#/components/schemas/Workspace"}
+        default: {$ref: "#/components/responses/WorkspaceError"}
+  /api/v1/organizations/{organizationID}/locations:
+    parameters:
+      - {$ref: "#/components/parameters/OrganizationID"}
+    post:
+      tags: [Organizaciones]
+      summary: Crear sede (ADMIN del tenant o SUPER_ADMIN)
+      operationId: createLocation
+      description: UUID estable entre reintentos idénticos. Zona horaria America/Lima. No acepta actor ni organización en el cuerpo.
+      security: [{FirebaseBearer: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/WorkspaceLocation"}
+      responses:
+        "200":
+          description: Sede creada o repetición idéntica.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {$ref: "#/components/schemas/WorkspaceLocation"}
+        default: {$ref: "#/components/responses/WorkspaceError"}
+  /api/v1/organizations/{organizationID}/members:
+    parameters:
+      - {$ref: "#/components/parameters/OrganizationID"}
+    post:
+      tags: [Organizaciones]
+      summary: Agregar una cuenta BPM activa al equipo
+      operationId: addOrganizationMember
+      description: Solo ADMIN del tenant o SUPER_ADMIN. No envía invitaciones. No cambia membresías existentes. CHEF/WORKER requieren sedes del mismo tenant. No concede roles de plataforma.
+      security: [{FirebaseBearer: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, role]
+              properties:
+                email: {type: string, format: email, maxLength: 320}
+                role: {type: string, enum: [ADMIN, CHEF, WORKER]}
+                locationIds:
+                  type: array
+                  maxItems: 100
+                  items: {type: string, format: uuid}
+      responses:
+        "200":
+          description: Membresía creada con auditoría.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      status: {type: string, enum: [ACTIVE]}
+        default: {$ref: "#/components/responses/WorkspaceError"}
 components:
+  parameters:
+    OrganizationID:
+      in: path
+      name: organizationID
+      required: true
+      description: Se autoriza contra membresía activa; enviar un ID no concede acceso.
+      schema: {type: string, maxLength: 64}
   securitySchemes:
     FirebaseBearer:
       type: http
@@ -138,6 +267,11 @@ components:
       bearerFormat: Firebase ID token
       description: ID token emitido por Firebase Authentication.
   responses:
+    WorkspaceError:
+      description: 400 JSON inválido; 401 sesión inválida; 403 sin permiso/correo sin verificar; 404 cuenta no disponible; 409 conflicto; 415 no JSON; 422 fields inválidos; 429 límite; 500/503 fallo sanitizado.
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorResponse"}
     Unauthenticated:
       description: Token ausente, inválido, vencido o revocado.
       content:
@@ -157,6 +291,67 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
   schemas:
+    WorkspaceOrganization:
+      type: object
+      additionalProperties: false
+      required: [id, legalName, businessType]
+      properties:
+        id: {type: string, format: uuid}
+        legalName: {type: string, minLength: 2, maxLength: 200}
+        tradeName: {type: string, maxLength: 200}
+        taxId: {type: string, maxLength: 20}
+        businessType: {type: string, enum: [RESTAURANT, CAFETERIA, CATERING, RELATED_SERVICE]}
+        contactName: {type: string, maxLength: 160}
+        contactPhone: {type: string, maxLength: 30}
+        contactEmail: {type: string, maxLength: 320}
+    WorkspaceLocation:
+      type: object
+      additionalProperties: false
+      required: [id, name, address]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string, minLength: 2, maxLength: 160}
+        address: {type: string, minLength: 3, maxLength: 300}
+        district: {type: string, maxLength: 120}
+        contactPhone: {type: string, maxLength: 30}
+        timezone: {type: string, readOnly: true, example: America/Lima}
+    WorkspaceMember:
+      type: object
+      properties:
+        id: {type: string}
+        name: {type: string}
+        email: {type: string, format: email}
+        role: {type: string, enum: [ADMIN, CHEF, WORKER]}
+        locationIds:
+          type: array
+          items: {type: string, format: uuid}
+    WorkspaceEntry:
+      type: object
+      properties:
+        id: {type: string}
+        title: {type: string}
+        detail: {type: string}
+        status: {type: string}
+    Workspace:
+      type: object
+      properties:
+        organization: {$ref: "#/components/schemas/WorkspaceOrganization"}
+        role: {type: string, enum: [SUPER_ADMIN, ADMIN, CHEF, WORKER]}
+        locations:
+          type: array
+          items: {$ref: "#/components/schemas/WorkspaceLocation"}
+        members:
+          type: array
+          items: {$ref: "#/components/schemas/WorkspaceMember"}
+        courses:
+          type: array
+          items: {$ref: "#/components/schemas/WorkspaceEntry"}
+        checklists:
+          type: array
+          items: {$ref: "#/components/schemas/WorkspaceEntry"}
+        incidents:
+          type: array
+          items: {$ref: "#/components/schemas/WorkspaceEntry"}
     HealthResponse:
       type: object
       required: [status, version]

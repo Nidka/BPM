@@ -19,18 +19,19 @@ son una guía inicial y pueden ajustarse antes de publicarse en OpenAPI.
 
 ## 1. Identidad y tenancy
 
-Estado: primer recorrido implementado. `GET /me` valida el token Firebase y
-devuelve usuario, organizaciones, roles y locales activos desde PostgreSQL. La
-selección del tenant, administración de miembros y dispositivos quedan como
-siguientes incrementos del mismo feature.
+Estado: identidad y alta de perfil implementadas. `features/organizations`
+incorpora selección de tenant, alta de organizaciones/sedes y adición de cuentas
+existentes al equipo. Permisos, límites y contrato en `ORGANIZATIONS.md`.
+Dispositivos, invitaciones, edición y desactivación siguen pendientes.
 
 - Tablas: `application_users`, `organizations`, `locations`,
   `organization_memberships`, `membership_locations`, `mobile_devices`.
 - Casos de uso: resolver identidad Firebase, consultar sesión, seleccionar
   organización activa, listar sedes autorizadas, administrar miembros y
   registrar dispositivos FCM.
-- Endpoints iniciales: `GET /me`, `GET /me/organizations`,
-  `GET /organizations/{id}/locations`, CRUD administrativo de miembros.
+- Endpoints actuales: `GET /me`, `GET|POST /organizations`,
+  `GET /organizations/{id}/workspace`, `POST /organizations/{id}/locations`
+  y `POST /organizations/{id}/members` (prefijo `/api/v1`).
 - Permisos: `SUPER_ADMIN` opera plataforma; `ADMIN`, `CHEF` y `WORKER` siempre
   dentro de una membresía activa.
 - Regla crítica: el `organization_id` efectivo sale de la membresía verificada.

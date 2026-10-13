@@ -37,6 +37,8 @@ Reglas obligatorias:
   `go test -race ./...` y `git diff --check`.
 
 Estado actual: la plataforma técnica y el primer recorrido de identidad están
-construidos. `GET /api/v1/me` resuelve usuario, organizaciones, roles y locales;
-el siguiente recorrido es seleccionar y autorizar el tenant activo.
+construidos. `GET /api/v1/me` resuelve identidad. `features/organizations`
+implementa tenant activo, altas de organización/sede y adición de miembros;
+leer también `specs/ORGANIZATIONS.md`. No confundir el catálogo del workspace
+con ejecución de capacitación, checklists o incidencias: esos recorridos faltan.
 

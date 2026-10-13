@@ -12,6 +12,7 @@ import (
 	firebaseauth "github.com/Nidka/BPM-service/internal/core/integrations/firebase"
 	"github.com/Nidka/BPM-service/internal/core/integrations/r2"
 	"github.com/Nidka/BPM-service/internal/features/identity"
+	"github.com/Nidka/BPM-service/internal/features/organizations"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -70,7 +71,7 @@ func NewContainer(
 
 	router := httpserver.NewRouter(cfg, logger, httpserver.Dependencies{
 		Database:  container.Database,
-		APIRoutes: []httpserver.APIRouteRegistrar{identityModule.RegisterRoutes},
+		APIRoutes: []httpserver.APIRouteRegistrar{identityModule.RegisterRoutes, organizations.Routes(container.Database, container.TokenVerifier, logger)},
 	})
 	container.Server = httpserver.New(cfg, logger, router, startupReporter)
 	return container, nil
