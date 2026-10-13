@@ -9,6 +9,9 @@
   `organization_memberships` antes de autorizar cualquier módulo.
 - Roles, tenant y sede provienen de PostgreSQL, no de campos enviados como prueba
   por el cliente.
+- Registro exige email Firebase verificado; crea únicamente USER sin membresías.
+  No acepta contraseñas, UID, correo ni roles en JSON. Nunca fusiona cuentas por
+  correo ni modifica/rehabilita una cuenta existente al reintentar.
 - Los errores HTTP usan códigos públicos y mensajes sanitizados; nunca incluyen
   el error original de Firebase, PostgreSQL u otro proveedor.
 

@@ -35,15 +35,22 @@ func (handler *Handler) Me(writer http.ResponseWriter, request *http.Request) {
 
 	profile, err := handler.getCurrentProfile.Execute(request.Context(), identity)
 	if err != nil {
-		handler.writeError(writer, request, err)
+		writeIdentityError(writer, request, err, handler.logger)
 		return
 	}
 	response.JSON(writer, http.StatusOK, map[string]any{"data": newProfileResponse(profile)})
 }
 
-func (handler *Handler) writeError(writer http.ResponseWriter, request *http.Request, err error) {
+func writeIdentityError(writer http.ResponseWriter, request *http.Request, err error, logger *slog.Logger) {
 	requestID := middleware.RequestIDFromContext(request.Context())
+	var validation *domain.ValidationError
 	switch {
+	case errors.As(err, &validation):
+		response.ValidationError(writer, requestID, validation.Fields)
+	case errors.Is(err, domain.ErrEmailUnverified):
+		response.Error(writer, http.StatusForbidden, requestID, response.APIError{Code: "EMAIL_NOT_VERIFIED", Message: "Verifica tu correo antes de completar el registro."})
+	case errors.Is(err, domain.ErrRegistrationConflict):
+		response.Error(writer, http.StatusConflict, requestID, response.APIError{Code: "REGISTRATION_CONFLICT", Message: "No se pudo completar el registro. Usa tu método de acceso original o contacta al administrador."})
 	case errors.Is(err, domain.ErrUnauthenticated):
 		response.Unauthenticated(writer, requestID)
 	case errors.Is(err, domain.ErrUserNotFound):
@@ -57,7 +64,7 @@ func (handler *Handler) writeError(writer http.ResponseWriter, request *http.Req
 			Message: "Tu cuenta se encuentra inactiva.",
 		})
 	default:
-		handler.logger.Error("identity request failed",
+		logger.Error("identity request failed",
 			"component", "identity",
 			"request_id", requestID,
 			"error_type", "internal",

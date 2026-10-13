@@ -13,6 +13,20 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: bpm_test
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: bpm_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bpm_test -d bpm_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://bpm_test:ci_only_password@localhost:5432/bpm_test?sslmode=disable
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,6 +45,9 @@ jobs:
 
       - name: Vet
         run: go vet ./...
+
+      - name: Initialize isolated CI database
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f migraciones/V1__baseline.sql
 
       - name: Test with race detector
         run: go test -race -count=1 ./...

@@ -3,9 +3,11 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/Nidka/BPM-service/internal/features/identity/domain"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -15,6 +17,21 @@ type Repository struct {
 
 func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
+}
+
+func (repository *Repository) CreateUser(ctx context.Context, user domain.NewUser) error {
+	_, err := repository.pool.Exec(ctx, `INSERT INTO application_users
+  (id,email,display_name,platform_role,status,created_by,updated_by)
+  VALUES ($1,$2,$3,'USER','ACTIVE',$1,$1)
+  ON CONFLICT (id) DO NOTHING`, user.ID, user.Email, user.DisplayName)
+	var pgError *pgconn.PgError
+	if errors.As(err, &pgError) && pgError.Code == "23505" {
+		return domain.ErrRegistrationConflict
+	}
+	if err != nil {
+		return fmt.Errorf("create application user: %w", err)
+	}
+	return nil
 }
 
 func (repository *Repository) FindByUserID(ctx context.Context, userID string) (domain.Profile, error) {

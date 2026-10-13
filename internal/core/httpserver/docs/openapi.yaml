@@ -81,6 +81,55 @@ paths:
           $ref: "#/components/responses/InternalError"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+  /api/v1/auth/register:
+    post:
+      tags: [Identidad]
+      summary: Completar el registro del perfil BPM
+      description: >-
+        Requiere un ID token Firebase con email verificado. El UID y correo salen
+        del token. Crea USER/ACTIVE sin organizaciones; repetir no modifica
+        roles, estado ni datos existentes. No acepta contraseñas ni permisos.
+      operationId: registerProfile
+      security:
+        - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [displayName]
+              properties:
+                displayName:
+                  type: string
+                  minLength: 2
+                  maxLength: 100
+      responses:
+        "200":
+          description: Perfil registrado o perfil existente sin modificaciones.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileEnvelope"
+        "400":
+          description: JSON inválido, campos desconocidos o cuerpo demasiado grande.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: EMAIL_NOT_VERIFIED o USER_INACTIVE.
+        "409":
+          description: REGISTRATION_CONFLICT; nunca fusiona cuentas por email.
+        "415":
+          description: Se requiere application/json.
+        "422":
+          description: VALIDATION_ERROR con fields.displayName.
+        "429":
+          description: Demasiados intentos de registro.
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 components:
   securitySchemes:
     FirebaseBearer:

@@ -24,7 +24,35 @@ login Google por un **ID token Firebase**; el backend no acepta contraseñas,
 access tokens Google ni tokens Google sin ese intercambio. El verificador Admin
 comprueba el token y su revocación, independientemente del proveedor. El UID
 es la clave de acceso; un correo coincidente no habilita otro UID ni fusiona cuentas.
-No se crean usuarios o membresías automáticamente al iniciar sesión con Google.
+Desde el registro explícito de esta entrega, el cliente puede completar un
+perfil USER mediante POST /auth/register. Las membresías nunca se autoasignan.
+
+## Registro mínimo
+
+`POST /api/v1/auth/register`, Bearer Firebase revocable, JSON `{ "displayName": "Nombre" }`.
+UID, email y emailVerified vienen exclusivamente del token; el correo debe estar
+verificado. Crea USER/ACTIVE con created_by/updated_by = UID, sin organizaciones.
+Devuelve 200 con el mismo ProfileEnvelope de /me. Repetir conserva el perfil
+existente, incluyendo rol y nombre; no reactiva usuarios inactivos. No acepta
+contraseñas, email, UID, roles ni tenant en el cuerpo. No cambia el baseline SQL.
+
+Errores: 400 INVALID_REQUEST, 401 UNAUTHENTICATED, 403 EMAIL_NOT_VERIFIED o
+USER_INACTIVE, 409 REGISTRATION_CONFLICT, 415 UNSUPPORTED_MEDIA_TYPE,
+422 VALIDATION_ERROR con fields.displayName, 429 y fallos internos sanitizados.
+Nombre: 2–100 caracteres, sin controles; JSON hasta 4 KiB y sin campos extra.
+Existe límite adicional de registro por IP del transporte (no se confían headers
+proxy); en Railway puede agrupar usuarios detrás del proxy. Es por instancia,
+no un rate limiter distribuido. Firebase también debe mantener protección antiabuso.
+
+Registro por correo en cliente: Firebase signUp → guardar nombre → enviar
+verificación → volver a entrar tras confirmar email → completar perfil backend.
+Google web usa el mismo registro cuando falta el perfil y el email está verificado.
+Una identidad Firebase creada pero sin perfil puede reintentar; no hay transacción
+distribuida ni borrado automático de cuentas. Un correo ocupado por otro UID se
+rechaza sin fusionar cuentas ni revelar detalles del conflicto.
+
+Pruebas PostgreSQL: TEST_DATABASE_URL; solo tabla TEMP por conexión, nunca insertan
+cuentas reales en public.application_users. CI usa PostgreSQL 18 aislado con V1.
 
 Para habilitar el endpoint se configuran `FIREBASE_ENABLED=true`,
 `FIREBASE_PROJECT_ID` y `FIREBASE_SERVICE_ACCOUNT_JSON_BASE64`. Con Firebase

@@ -34,8 +34,10 @@ func New(dependencies Dependencies) (*Module, error) {
 	repository := identitypostgres.NewRepository(dependencies.Database)
 	getCurrentProfile := application.NewGetCurrentProfile(repository)
 	handler := identityhttp.NewHandler(getCurrentProfile, dependencies.Logger)
+	registerHandler := identityhttp.NewRegisterHandler(application.NewRegister(repository), dependencies.Logger)
+	registrationLimit := httpmiddleware.NewIPRateLimiter(0.2, 5, false)
 	return &Module{
-		routes: identityhttp.NewRoutes(handler, httpmiddleware.Authenticate(dependencies.TokenVerifier)),
+		routes: identityhttp.NewRoutes(handler, httpmiddleware.Authenticate(dependencies.TokenVerifier)).WithRegistration(registerHandler, registrationLimit.Middleware),
 	}, nil
 }
 
