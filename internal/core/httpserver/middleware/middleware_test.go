@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/Nidka/BPM-service/internal/core/contracts"
@@ -32,6 +33,24 @@ func TestSecurityHeaders(t *testing.T) {
 	} {
 		if recorder.Header().Get(header) == "" {
 			t.Fatalf("missing security header %s", header)
+		}
+	}
+	if policy := recorder.Header().Get("Content-Security-Policy"); strings.Contains(policy, "unsafe-inline") {
+		t.Fatalf("regular API routes must keep the restrictive CSP: %s", policy)
+	}
+}
+
+func TestSecurityHeadersAllowEmbeddedSwaggerAssets(t *testing.T) {
+	handler := SecurityHeaders(true, 31536000)(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.WriteHeader(http.StatusNoContent)
+	}))
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/docs/", nil))
+
+	policy := recorder.Header().Get("Content-Security-Policy")
+	for _, directive := range []string{"script-src 'self' 'unsafe-inline'", "connect-src 'self'", "frame-ancestors 'none'"} {
+		if !strings.Contains(policy, directive) {
+			t.Fatalf("Swagger CSP is missing %q: %s", directive, policy)
 		}
 	}
 }

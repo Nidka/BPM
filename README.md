@@ -23,6 +23,7 @@ dependencias externas y solo se usa para eliminar duplicación comprobada.
 - Configuración tipada y validada desde variables de entorno.
 - PostgreSQL mediante `pgxpool`, límites de conexiones y timeouts de seguridad.
 - Servidor HTTP con apagado controlado y endpoints `/health` y `/ready`.
+- OpenAPI 3.0.3 en `/openapi.yaml` y Swagger UI embebida en `/docs/`.
 - Request ID, logs estructurados, recuperación de pánicos y soporte opcional de
   Sentry sin PII predeterminada.
 - CORS por allowlist, HSTS, cabeceras restrictivas, rate limit y límite de cuerpo.
@@ -113,6 +114,12 @@ Verificación:
 ```bash
 curl -i http://localhost:8080/health
 curl -i http://localhost:8080/ready
+```
+
+Documentación interactiva:
+
+```text
+http://localhost:8080/docs/
 ```
 
 Pruebas y análisis:

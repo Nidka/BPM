@@ -10,9 +10,10 @@ Antes de modificar código, leer en este orden:
 6. `specs/FEATURES.md`
 7. `specs/IDENTITY.md`
 8. `specs/API_ERRORS.md`
-9. `specs/MIGRATIONS.md`
-10. `specs/SECURITY.md`
-11. `.env.example`
+9. `specs/OPENAPI.md`
+10. `specs/MIGRATIONS.md`
+11. `specs/SECURITY.md`
+12. `.env.example`
 
 Reglas obligatorias:
 

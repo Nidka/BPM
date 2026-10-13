@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/Nidka/BPM-service/internal/core/config"
+	"github.com/Nidka/BPM-service/internal/core/httpserver/docs"
 	"github.com/Nidka/BPM-service/internal/core/httpserver/health"
 	httpmiddleware "github.com/Nidka/BPM-service/internal/core/httpserver/middleware"
 	"github.com/Nidka/BPM-service/internal/core/httpserver/response"
@@ -33,8 +34,14 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dependencies Dependencies
 	router.Use(chimiddleware.Timeout(cfg.HTTP.RequestTimeout))
 
 	healthHandler := health.NewHandler(dependencies.Database, cfg.App.Version)
+	documentationHandler := docs.NewHandler()
 	router.Get("/health", healthHandler.Live)
 	router.Get("/ready", healthHandler.Ready)
+	router.Get(docs.SpecPath, documentationHandler.Spec)
+	router.Get("/docs", func(writer http.ResponseWriter, request *http.Request) {
+		http.Redirect(writer, request, docs.UIPath, http.StatusPermanentRedirect)
+	})
+	router.Mount(docs.UIPath, documentationHandler.UI())
 
 	router.Route(cfg.HTTP.APIBasePath, func(api chi.Router) {
 		api.Get("/", func(writer http.ResponseWriter, _ *http.Request) {

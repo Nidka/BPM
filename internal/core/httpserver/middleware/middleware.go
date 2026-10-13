@@ -105,7 +105,7 @@ func SecurityHeaders(productionLike bool, hstsMaxAgeSeconds int) func(http.Handl
 			headers.Set("X-Frame-Options", "DENY")
 			headers.Set("Referrer-Policy", "no-referrer")
 			headers.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-			headers.Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+			headers.Set("Content-Security-Policy", contentSecurityPolicy(request.URL.Path))
 			headers.Set("Cache-Control", "no-store")
 			if productionLike {
 				headers.Set("Strict-Transport-Security", "max-age="+strconv.Itoa(hstsMaxAgeSeconds)+"; includeSubDomains")
@@ -113,6 +113,13 @@ func SecurityHeaders(productionLike bool, hstsMaxAgeSeconds int) func(http.Handl
 			next.ServeHTTP(writer, request)
 		})
 	}
+}
+
+func contentSecurityPolicy(path string) string {
+	if path == "/docs" || strings.HasPrefix(path, "/docs/") {
+		return "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'none'"
+	}
+	return "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
 }
 
 func CORS(allowedOrigins []string) func(http.Handler) http.Handler {

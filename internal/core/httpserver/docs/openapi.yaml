@@ -1,0 +1,228 @@
+openapi: 3.0.3
+info:
+  title: BPM API
+  version: 1.0.0
+  description: >-
+    API del sistema BPM para gestión de buenas prácticas, identidad y
+    operaciones de organizaciones y locales.
+servers:
+  - url: /
+    description: Servidor actual
+tags:
+  - name: Sistema
+    description: Estado y disponibilidad del servicio.
+  - name: Identidad
+    description: Sesión e identidad verificadas con Firebase.
+paths:
+  /health:
+    get:
+      tags: [Sistema]
+      summary: Verificar que el proceso está vivo
+      operationId: getHealth
+      responses:
+        "200":
+          description: Proceso en ejecución.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /ready:
+    get:
+      tags: [Sistema]
+      summary: Verificar disponibilidad de PostgreSQL
+      operationId: getReadiness
+      responses:
+        "200":
+          description: API y PostgreSQL disponibles.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /api/v1/:
+    get:
+      tags: [Sistema]
+      summary: Consultar información básica de la API
+      operationId: getAPIInfo
+      responses:
+        "200":
+          description: Nombre y versión desplegada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIInfoResponse"
+  /api/v1/me:
+    get:
+      tags: [Identidad]
+      summary: Obtener el perfil del usuario autenticado
+      description: >-
+        Valida el ID token de Firebase y devuelve el usuario, sus membresías,
+        roles y locales activos registrados en PostgreSQL.
+      operationId: getCurrentProfile
+      security:
+        - FirebaseBearer: []
+      responses:
+        "200":
+          description: Perfil y membresías activas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: Usuario no registrado o inactivo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+components:
+  securitySchemes:
+    FirebaseBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: Firebase ID token
+      description: ID token emitido por Firebase Authentication.
+  responses:
+    Unauthenticated:
+      description: Token ausente, inválido, vencido o revocado.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Error interno sanitizado.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ServiceUnavailable:
+      description: Dependencia técnica o autenticación no disponible.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, version]
+      properties:
+        status:
+          type: string
+          example: ok
+        version:
+          type: string
+          description: SHA del commit desplegado o versión configurada.
+    ReadyResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ready
+    APIInfoResponse:
+      type: object
+      required: [name, version]
+      properties:
+        name:
+          type: string
+          example: bpm-api
+        version:
+          type: string
+    ProfileEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Profile"
+    Profile:
+      type: object
+      required: [id, email, displayName, platformRole, organizations]
+      properties:
+        id:
+          type: string
+          description: UID verificado de Firebase.
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        phoneNumber:
+          type: string
+        platformRole:
+          type: string
+          enum: [USER, SUPER_ADMIN]
+        organizations:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrganizationMembership"
+    OrganizationMembership:
+      type: object
+      required: [id, legalName, role, locations]
+      properties:
+        id:
+          type: string
+          format: uuid
+        legalName:
+          type: string
+        tradeName:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, CHEF, WORKER]
+        locations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Location"
+    Location:
+      type: object
+      required: [id, name, address, timezone]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        address:
+          type: string
+        addressReference:
+          type: string
+        district:
+          type: string
+        province:
+          type: string
+        department:
+          type: string
+        timezone:
+          type: string
+          example: America/Lima
+    ErrorResponse:
+      type: object
+      required: [errors]
+      properties:
+        errors:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/APIError"
+        requestId:
+          type: string
+    APIError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: UNAUTHENTICATED
+        message:
+          type: string
+          example: Se requiere autenticación.
+        fields:
+          type: object
+          additionalProperties:
+            type: string

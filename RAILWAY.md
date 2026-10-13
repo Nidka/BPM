@@ -180,6 +180,13 @@ curl -i https://DOMINIO_RAILWAY/health
 curl -i https://DOMINIO_RAILWAY/ready
 ```
 
+Documentación desplegada:
+
+```text
+https://DOMINIO_RAILWAY/docs/
+https://DOMINIO_RAILWAY/openapi.yaml
+```
+
 ### Dominio administrado en Cloudflare
 
 Cuando el dominio temporal funcione, configurar un subdominio como

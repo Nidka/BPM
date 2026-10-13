@@ -12,8 +12,9 @@ Orden recomendado de lectura:
 6. `FEATURES.md`: alcance y orden de los módulos funcionales.
 7. `IDENTITY.md`: contrato del primer feature y `/api/v1/me`.
 8. `API_ERRORS.md`: formato uniforme y sanitizado de errores HTTP.
-9. `MIGRATIONS.md`: convención y flujo de cambios PostgreSQL.
-10. `SECURITY.md`: controles obligatorios.
+9. `OPENAPI.md`: contrato HTTP y Swagger UI embebida.
+10. `MIGRATIONS.md`: convención y flujo de cambios PostgreSQL.
+11. `SECURITY.md`: controles obligatorios.
 
 Las especificaciones describen decisiones vigentes. Si una decisión cambia, se
 actualiza aquí en el mismo cambio que modifica el código.

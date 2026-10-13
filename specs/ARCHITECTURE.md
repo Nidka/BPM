@@ -137,6 +137,7 @@ infraestructura. La política completa está en `SHARED_COMPONENTS.md`.
 - Pool PostgreSQL limitado y configurado en UTC.
 - `/health`: vida del proceso.
 - `/ready`: disponibilidad de PostgreSQL.
+- `/openapi.yaml` y `/docs/`: contrato OpenAPI y Swagger UI autocontenida.
 - Middleware de request ID, recuperación, cabeceras, CORS, límite de cuerpo,
   tiempo máximo, rate limit y logs sin query strings ni cuerpos.
 - Contrato HTTP de errores sanitizados con arreglo `errors`, códigos estables,
