@@ -15,8 +15,13 @@ import (
 
 var ErrInvalidToken = errors.New("invalid authentication token")
 
+// El puerto conserva la comprobación de revocación para cualquier proveedor.
+type revocationTokenClient interface {
+	VerifyIDTokenAndCheckRevoked(context.Context, string) (*auth.Token, error)
+}
+
 type Verifier struct {
-	client *auth.Client
+	client revocationTokenClient
 }
 
 func New(ctx context.Context, cfg config.FirebaseConfig) (*Verifier, error) {
@@ -40,7 +45,7 @@ func (v *Verifier) VerifyIDToken(ctx context.Context, rawToken string) (contract
 	// Revocation checking is deliberate for sensitive operational data. If this
 	// becomes a latency concern, add a short, bounded cache instead of skipping it.
 	token, err := v.client.VerifyIDTokenAndCheckRevoked(ctx, rawToken)
-	if err != nil {
+	if err != nil || token == nil || token.UID == "" {
 		return contracts.Identity{}, ErrInvalidToken
 	}
 

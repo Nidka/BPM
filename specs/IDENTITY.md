@@ -19,10 +19,23 @@ Firebase demuestra la identidad. PostgreSQL es la fuente de verdad para el
 estado interno, rol de plataforma, organizaciones, roles empresariales y locales
 permitidos. El cliente nunca decide su rol ni su tenant efectivo.
 
+Correo/contraseña y Google usan el mismo endpoint. El frontend intercambia el
+login Google por un **ID token Firebase**; el backend no acepta contraseñas,
+access tokens Google ni tokens Google sin ese intercambio. El verificador Admin
+comprueba el token y su revocación, independientemente del proveedor. El UID
+es la clave de acceso; un correo coincidente no habilita otro UID ni fusiona cuentas.
+No se crean usuarios o membresías automáticamente al iniciar sesión con Google.
+
 Para habilitar el endpoint se configuran `FIREBASE_ENABLED=true`,
 `FIREBASE_PROJECT_ID` y `FIREBASE_SERVICE_ACCOUNT_JSON_BASE64`. Con Firebase
 deshabilitado la ruta existe, pero devuelve `503 AUTHENTICATION_UNAVAILABLE`;
 esto permite desarrollar la base técnica sin simular una identidad insegura.
+
+El Project ID del despliegue es `app-bpm-af59c`. La API key pública de la app web
+no es la cuenta de servicio: generar su JSON en Firebase → Configuración →
+Cuentas de servicio, mantenerlo fuera de Git y configurar su base64 únicamente
+como secreto sellado del backend. Habilitar Firebase después de instalar ese
+secreto y dar de alta el UID exacto de prueba en `application_users`.
 
 ## Solicitud
 
