@@ -3,7 +3,7 @@ package application
 import (
 	"context"
 
-	"github.com/Nidka/BPM/internal/features/identity/domain"
+	"github.com/Nidka/BPM-service/internal/features/identity/domain"
 )
 
 type ProfileRepository interface {

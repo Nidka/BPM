@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Nidka/BPM/internal/core/config"
+	"github.com/Nidka/BPM-service/internal/core/config"
 	"github.com/getsentry/sentry-go"
 	"github.com/lmittmann/tint"
 )

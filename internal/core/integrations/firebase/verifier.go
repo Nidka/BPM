@@ -8,8 +8,8 @@ import (
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
-	"github.com/Nidka/BPM/internal/core/config"
-	"github.com/Nidka/BPM/internal/core/contracts"
+	"github.com/Nidka/BPM-service/internal/core/config"
+	"github.com/Nidka/BPM-service/internal/core/contracts"
 	"google.golang.org/api/option"
 )
 

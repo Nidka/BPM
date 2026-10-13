@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/Nidka/BPM/internal/core/contracts"
-	"github.com/Nidka/BPM/internal/core/httpserver/middleware"
-	"github.com/Nidka/BPM/internal/core/httpserver/response"
-	"github.com/Nidka/BPM/internal/features/identity/domain"
+	"github.com/Nidka/BPM-service/internal/core/contracts"
+	"github.com/Nidka/BPM-service/internal/core/httpserver/middleware"
+	"github.com/Nidka/BPM-service/internal/core/httpserver/response"
+	"github.com/Nidka/BPM-service/internal/features/identity/domain"
 )
 
 type CurrentProfileGetter interface {

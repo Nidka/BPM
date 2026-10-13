@@ -5,13 +5,13 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/Nidka/BPM/internal/core/config"
-	"github.com/Nidka/BPM/internal/core/contracts"
-	"github.com/Nidka/BPM/internal/core/database/postgres"
-	"github.com/Nidka/BPM/internal/core/httpserver"
-	firebaseauth "github.com/Nidka/BPM/internal/core/integrations/firebase"
-	"github.com/Nidka/BPM/internal/core/integrations/r2"
-	"github.com/Nidka/BPM/internal/features/identity"
+	"github.com/Nidka/BPM-service/internal/core/config"
+	"github.com/Nidka/BPM-service/internal/core/contracts"
+	"github.com/Nidka/BPM-service/internal/core/database/postgres"
+	"github.com/Nidka/BPM-service/internal/core/httpserver"
+	firebaseauth "github.com/Nidka/BPM-service/internal/core/integrations/firebase"
+	"github.com/Nidka/BPM-service/internal/core/integrations/r2"
+	"github.com/Nidka/BPM-service/internal/features/identity"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

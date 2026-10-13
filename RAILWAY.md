@@ -24,7 +24,7 @@ desplegar commits cuyas pruebas fallen.
 - Proyecto Railway: `bpm`.
 - Ambiente: `production`.
 - Servicio existente: `Postgres`, en línea.
-- Repositorio GitHub: `Nidka/BPM`.
+- Repositorio GitHub: `Nidka/BPM-service`.
 - Rama de producción: `main`.
 - Servicio pendiente de crear: `api`.
 - El repositorio tiene `Dockerfile` en la raíz y workflow en
@@ -61,7 +61,7 @@ En Railway:
 
 1. Abrir el proyecto **bpm** y el ambiente **production**.
 2. Pulsar **+ New → GitHub Repo**.
-3. Seleccionar `Nidka/BPM`.
+3. Seleccionar `Nidka/BPM-service`.
 4. Nombrar el servicio `api`.
 5. Seleccionar la rama `main`.
 6. Mantener **Root Directory** en `/`, porque este repositorio ya tiene el

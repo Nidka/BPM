@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/Nidka/BPM/internal/core/contracts"
-	"github.com/Nidka/BPM/internal/features/identity/domain"
+	"github.com/Nidka/BPM-service/internal/core/contracts"
+	"github.com/Nidka/BPM-service/internal/features/identity/domain"
 )
 
 type GetCurrentProfile struct {

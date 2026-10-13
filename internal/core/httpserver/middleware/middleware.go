@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Nidka/BPM/internal/core/contracts"
-	"github.com/Nidka/BPM/internal/core/httpserver/response"
+	"github.com/Nidka/BPM-service/internal/core/contracts"
+	"github.com/Nidka/BPM-service/internal/core/httpserver/response"
 	"github.com/getsentry/sentry-go"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"golang.org/x/time/rate"

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/Nidka/BPM/internal/features/identity/domain"
+	"github.com/Nidka/BPM-service/internal/features/identity/domain"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

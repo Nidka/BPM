@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Nidka/BPM/internal/core/httpserver/middleware"
-	"github.com/Nidka/BPM/internal/core/httpserver/response"
+	"github.com/Nidka/BPM-service/internal/core/httpserver/middleware"
+	"github.com/Nidka/BPM-service/internal/core/httpserver/response"
 )
 
 type Pinger interface {

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Nidka/BPM/internal/core/config"
+	"github.com/Nidka/BPM-service/internal/core/config"
 )
 
 func TestDevelopmentLoggerUsesColorizedReadableOutput(t *testing.T) {

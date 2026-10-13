@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Nidka/BPM/internal/core/contracts"
-	httpmiddleware "github.com/Nidka/BPM/internal/core/httpserver/middleware"
-	"github.com/Nidka/BPM/internal/core/httpserver/response"
-	"github.com/Nidka/BPM/internal/features/identity/domain"
+	"github.com/Nidka/BPM-service/internal/core/contracts"
+	httpmiddleware "github.com/Nidka/BPM-service/internal/core/httpserver/middleware"
+	"github.com/Nidka/BPM-service/internal/core/httpserver/response"
+	"github.com/Nidka/BPM-service/internal/features/identity/domain"
 	"github.com/go-chi/chi/v5"
 )
 

@@ -4,11 +4,11 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/Nidka/BPM/internal/core/contracts"
-	httpmiddleware "github.com/Nidka/BPM/internal/core/httpserver/middleware"
-	identityhttp "github.com/Nidka/BPM/internal/features/identity/adapters/http"
-	identitypostgres "github.com/Nidka/BPM/internal/features/identity/adapters/postgres"
-	"github.com/Nidka/BPM/internal/features/identity/application"
+	"github.com/Nidka/BPM-service/internal/core/contracts"
+	httpmiddleware "github.com/Nidka/BPM-service/internal/core/httpserver/middleware"
+	identityhttp "github.com/Nidka/BPM-service/internal/features/identity/adapters/http"
+	identitypostgres "github.com/Nidka/BPM-service/internal/features/identity/adapters/postgres"
+	"github.com/Nidka/BPM-service/internal/features/identity/application"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

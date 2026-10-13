@@ -7,8 +7,8 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/Nidka/BPM/internal/core/config"
-	"github.com/Nidka/BPM/internal/core/contracts"
+	"github.com/Nidka/BPM-service/internal/core/config"
+	"github.com/Nidka/BPM-service/internal/core/contracts"
 )
 
 var ansiSequence = regexp.MustCompile(`\x1b\[[0-9;]*m`)

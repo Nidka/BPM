@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Nidka/BPM/internal/core/config"
-	"github.com/Nidka/BPM/internal/core/contracts"
+	"github.com/Nidka/BPM-service/internal/core/config"
+	"github.com/Nidka/BPM-service/internal/core/contracts"
 )
 
 const (

@@ -1,4 +1,4 @@
-module github.com/Nidka/BPM
+module github.com/Nidka/BPM-service
 
 go 1.27.0
 

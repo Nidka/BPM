@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Nidka/BPM/internal/core/app"
+	"github.com/Nidka/BPM-service/internal/core/app"
 )
 
 func main() {

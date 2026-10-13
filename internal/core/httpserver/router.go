@@ -4,10 +4,10 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/Nidka/BPM/internal/core/config"
-	"github.com/Nidka/BPM/internal/core/httpserver/health"
-	httpmiddleware "github.com/Nidka/BPM/internal/core/httpserver/middleware"
-	"github.com/Nidka/BPM/internal/core/httpserver/response"
+	"github.com/Nidka/BPM-service/internal/core/config"
+	"github.com/Nidka/BPM-service/internal/core/httpserver/health"
+	httpmiddleware "github.com/Nidka/BPM-service/internal/core/httpserver/middleware"
+	"github.com/Nidka/BPM-service/internal/core/httpserver/response"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )

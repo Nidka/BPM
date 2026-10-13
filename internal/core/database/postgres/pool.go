@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Nidka/BPM/internal/core/config"
+	"github.com/Nidka/BPM-service/internal/core/config"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
