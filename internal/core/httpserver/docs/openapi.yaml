@@ -72,7 +72,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
-          description: Usuario no registrado o inactivo.
+          description: Usuario no registrado, inactivo o correo sin verificar (EMAIL_NOT_VERIFIED).
           content:
             application/json:
               schema:

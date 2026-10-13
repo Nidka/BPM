@@ -20,6 +20,11 @@ func (useCase *GetCurrentProfile) Execute(ctx context.Context, identity contract
 	if strings.TrimSpace(identity.UID) == "" {
 		return domain.Profile{}, domain.ErrUnauthenticated
 	}
+	// La verificación no solo aplica al alta: una cuenta ya existente tampoco
+	// puede abrir una sesión BPM con un correo sin verificar.
+	if !identity.EmailVerified {
+		return domain.Profile{}, domain.ErrEmailUnverified
+	}
 
 	profile, err := useCase.repository.FindByUserID(ctx, identity.UID)
 	if err != nil {

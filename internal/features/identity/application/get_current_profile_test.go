@@ -27,7 +27,7 @@ func TestGetCurrentProfileReturnsActiveUser(t *testing.T) {
 	}}
 	useCase := NewGetCurrentProfile(repository)
 
-	profile, err := useCase.Execute(context.Background(), contracts.Identity{UID: "firebase-uid"})
+	profile, err := useCase.Execute(context.Background(), contracts.Identity{UID: "firebase-uid", EmailVerified: true})
 	if err != nil {
 		t.Fatalf("execute use case: %v", err)
 	}
@@ -54,8 +54,16 @@ func TestGetCurrentProfileRejectsInactiveUser(t *testing.T) {
 		Status: domain.UserStatusInactive,
 	}})
 
-	_, err := useCase.Execute(context.Background(), contracts.Identity{UID: "firebase-uid"})
+	_, err := useCase.Execute(context.Background(), contracts.Identity{UID: "firebase-uid", EmailVerified: true})
 	if !errors.Is(err, domain.ErrUserInactive) {
 		t.Fatalf("expected inactive user error, got %v", err)
+	}
+}
+
+func TestGetCurrentProfileRejectsUnverifiedEmailBeforeDatabase(t *testing.T) {
+	repository := &profileRepositoryStub{profile: domain.Profile{ID: "firebase-uid", Status: domain.UserStatusActive}}
+	_, err := NewGetCurrentProfile(repository).Execute(context.Background(), contracts.Identity{UID: "firebase-uid"})
+	if !errors.Is(err, domain.ErrEmailUnverified) || repository.userID != "" {
+		t.Fatal("unverified identity must be rejected without querying the database")
 	}
 }

@@ -19,6 +19,11 @@ Firebase demuestra la identidad. PostgreSQL es la fuente de verdad para el
 estado interno, rol de plataforma, organizaciones, roles empresariales y locales
 permitidos. El cliente nunca decide su rol ni su tenant efectivo.
 
+GET /me exige emailVerified también para cuentas existentes; devuelve
+403 EMAIL_NOT_VERIFIED sin consultar PostgreSQL si el token tiene correo sin
+verificar. Registro y login mantienen la misma regla; nunca se confía en un
+campo emailVerified enviado por el cliente.
+
 Correo/contraseña y Google usan el mismo endpoint. El frontend intercambia el
 login Google por un **ID token Firebase**; el backend no acepta contraseñas,
 access tokens Google ni tokens Google sin ese intercambio. El verificador Admin
