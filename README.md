@@ -150,4 +150,3 @@ esquema desplegado.
 
 El pool usa por defecto entre 2 y 10 conexiones. Cada conexión se configura en
 UTC con límites para consultas, bloqueos y transacciones abandonadas.
-# BPM
