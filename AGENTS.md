@@ -9,11 +9,13 @@ Antes de modificar código, leer en este orden:
 5. `specs/FEATURE_TEMPLATE.md`
 6. `specs/FEATURES.md`
 7. `specs/IDENTITY.md`
-8. `specs/API_ERRORS.md`
-9. `specs/OPENAPI.md`
-10. `specs/MIGRATIONS.md`
-11. `specs/SECURITY.md`
-12. `.env.example`
+8. `specs/ORGANIZATIONS.md`
+9. `specs/CHECKLISTS.md`
+10. `specs/API_ERRORS.md`
+11. `specs/OPENAPI.md`
+12. `specs/MIGRATIONS.md`
+13. `specs/SECURITY.md`
+14. `.env.example`
 
 Reglas obligatorias:
 
@@ -36,9 +38,9 @@ Reglas obligatorias:
 - Antes de entregar: `gofmt`, `go vet ./...`, `go test ./...`,
   `go test -race ./...` y `git diff --check`.
 
-Estado actual: la plataforma técnica y el primer recorrido de identidad están
-construidos. `GET /api/v1/me` resuelve identidad. `features/organizations`
-implementa tenant activo, altas de organización/sede y adición de miembros;
-leer también `specs/ORGANIZATIONS.md`. No confundir el catálogo del workspace
-con ejecución de capacitación, checklists o incidencias: esos recorridos faltan.
+Estado actual: identidad y organizaciones ya permiten perfiles, tenant activo,
+altas de organización/sede y adición de miembros; leer `specs/ORGANIZATIONS.md`.
+`features/checklists` implementa la primera versión operativa con catálogo,
+borrador, respuestas y envío; leer `specs/CHECKLISTS.md`. Las asignaciones,
+evidencias, capacitación e incidencias siguen pendientes.
 

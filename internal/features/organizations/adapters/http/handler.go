@@ -1,14 +1,12 @@
 package organizationhttp
 
 import (
-	"encoding/json"
 	"errors"
-	"io"
 	"log/slog"
-	"mime"
 	"net/http"
 
 	"github.com/Nidka/BPM-service/internal/core/httpserver/middleware"
+	httprequest "github.com/Nidka/BPM-service/internal/core/httpserver/request"
 	"github.com/Nidka/BPM-service/internal/core/httpserver/response"
 	"github.com/Nidka/BPM-service/internal/features/organizations/application"
 	"github.com/Nidka/BPM-service/internal/features/organizations/domain"
@@ -79,16 +77,7 @@ func (h *Handler) Register(r chi.Router, auth func(http.Handler) http.Handler) {
 	})
 }
 func (h *Handler) actor(w http.ResponseWriter, r *http.Request) (string, bool) {
-	a, ok := middleware.IdentityFromContext(r.Context())
-	if !ok {
-		response.Unauthenticated(w, middleware.RequestIDFromContext(r.Context()))
-		return "", false
-	}
-	if !a.EmailVerified {
-		response.Error(w, 403, middleware.RequestIDFromContext(r.Context()), response.APIError{Code: "EMAIL_NOT_VERIFIED", Message: "Verifica tu correo antes de continuar."})
-		return "", false
-	}
-	return a.UID, true
+	return httprequest.VerifiedUID(w, r)
 }
 func (h *Handler) fail(w http.ResponseWriter, r *http.Request, e error) {
 	id := middleware.RequestIDFromContext(r.Context())
@@ -108,24 +97,7 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, e error) {
 	}
 }
 func decode(w http.ResponseWriter, r *http.Request, target any) bool {
-	id := middleware.RequestIDFromContext(r.Context())
-	kind, _, e := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if e != nil || kind != "application/json" {
-		response.Error(w, 415, id, response.APIError{Code: "UNSUPPORTED_MEDIA_TYPE", Message: "Envía una solicitud JSON."})
-		return false
-	}
-	d := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16384))
-	d.DisallowUnknownFields()
-	e = d.Decode(target)
-	if e == nil {
-		var extra any
-		e = d.Decode(&extra)
-		if e == io.EOF {
-			return true
-		}
-	}
-	response.Error(w, 400, id, response.APIError{Code: "INVALID_REQUEST", Message: "Revisa la estructura y el tamaño de la solicitud."})
-	return false
+	return httprequest.DecodeJSON(w, r, target, 16384)
 }
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	uid, ok := h.actor(w, r)

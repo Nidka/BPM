@@ -31,14 +31,16 @@ modular: mantiene bajo el costo operativo sin perder separación interna.
 - PostgreSQL está creado en Railway.
 - La API base compila, abre un pool, expone `/health` y `/ready` y termina de
   forma controlada.
-- Firebase y R2 tienen adaptadores configurables, todavía sin endpoints de
-  negocio.
+- Firebase verifica sesiones; R2 tiene adaptador configurable, todavía sin
+  endpoints de carga de evidencias.
 - Existe middleware de seguridad, logs estructurados, Sentry opcional, Docker,
   Railway y CI.
 - Identidad/tenancy ya implementa el primer recorrido autenticado
   `GET /api/v1/me`, que resuelve usuario, organizaciones, roles y locales.
-- La selección del tenant activo y la administración de miembros siguen
-  pendientes dentro del feature de identidad.
+- Organizaciones permite crear tenant y sedes, agregar miembros existentes y
+  consultar un espacio de trabajo autorizado.
+- Checklists permite publicar una primera versión, descargar catálogo,
+  sincronizar respuestas de borrador y enviar con puntaje calculado en servidor.
 
 ## Flujo de una solicitud
 
@@ -68,11 +70,9 @@ paralelas para resolver la contradicción silenciosamente.
 
 ## Próximo recorrido
 
-1. Selección de tenant activo dentro de identidad/tenancy.
-2. Autorización reutilizable por organización, sede y acción.
-3. Checklist como siguiente módulo vertical completo.
-4. Idempotencia y sincronización offline.
-5. Evidencias privadas R2.
+1. Completar asignaciones, nuevas versiones y paginación de checklists.
+2. Implementar evidencias privadas R2 con firmas temporales.
+3. Ampliar operación diaria e incidencias como módulos verticales.
 
 ## Qué no hacer
 

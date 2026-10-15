@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/Nidka/BPM-service/internal/features/identity/domain"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -11,7 +12,7 @@ import (
 	"time"
 )
 
-// Todos los datos de prueba viven en una tabla TEMP de una única conexión.
+// Todos los datos de prueba viven en un esquema propio con la migración real.
 // Nunca se insertan cuentas en public.application_users.
 func TestRegistrationPostgres(t *testing.T) {
 	dsn := os.Getenv("TEST_DATABASE_URL")
@@ -24,22 +25,34 @@ func TestRegistrationPostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal("invalid test database configuration")
 	}
+	if cfg.ConnConfig.Database != "bpm_test" {
+		t.Fatal("requires database bpm_test")
+	}
+	admin, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal("cannot connect to test database")
+	}
+	defer admin.Close(context.Background())
+	schema := pgx.Identifier{fmt.Sprintf("identity_test_%d", time.Now().UnixNano())}.Sanitize()
+	if _, err = admin.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+		t.Fatal(err)
+	}
+	defer admin.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
 	cfg.MaxConns = 1
 	cfg.MinConns = 0
-	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-		_, err := conn.Exec(ctx, `CREATE TEMP TABLE application_users (
-   id VARCHAR(128) PRIMARY KEY, email VARCHAR(320) NOT NULL, display_name VARCHAR(200) NOT NULL,
-   phone_number VARCHAR(30), platform_role VARCHAR(20) NOT NULL DEFAULT 'USER', status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
-   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-   created_by VARCHAR(128), updated_by VARCHAR(128));
-   CREATE UNIQUE INDEX test_user_email_unique ON application_users (LOWER(email));`)
-		return err
-	}
+	cfg.ConnConfig.RuntimeParams["search_path"] = schema + ",public"
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		t.Fatal("cannot initialize test pool")
 	}
 	defer pool.Close()
+	baseline, err := os.ReadFile("../../../../../migraciones/V1__baseline.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = pool.Exec(ctx, string(baseline)); err != nil {
+		t.Fatal(err)
+	}
 	repo := NewRepository(pool)
 	user := domain.NewUser{ID: "test-uid-1", Email: "person@example.invalid", DisplayName: "Persona"}
 	if err := repo.CreateUser(ctx, user); err != nil {

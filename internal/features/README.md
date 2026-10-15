@@ -23,7 +23,8 @@ Reglas:
 - Los helpers permanecen privados y cerca de su uso. No existe una carpeta
   genérica `utils`.
 
-La primera feature será `identity`; el orden restante está en
-`specs/FEATURES.md` y la plantilla de implementación en
+Están implementados `identity`, `organizations` y la primera versión vertical
+de `checklists`. El alcance y los siguientes módulos se documentan en
+`specs/FEATURES.md`; la plantilla de implementación está en
 `specs/FEATURE_TEMPLATE.md`.
 

@@ -32,6 +32,8 @@ dependencias externas y solo se usa para eliminar duplicación comprobada.
   locales activos obtenidos desde PostgreSQL.
 - Feature de organizaciones con selección de espacio de trabajo, alta de
   organizaciones/sedes y adición de miembros existentes según rol y tenant.
+- Feature de checklists con publicación inicial, catálogo descargable,
+  borradores offline, respuestas idempotentes y envío con puntaje del servidor.
 - Errores HTTP uniformes mediante un arreglo `errors`, códigos estables,
   mensajes seguros, campos inválidos y `requestId`.
 - Adaptador Cloudflare R2 privado con PUT/GET firmado, MIME, tamaño, SHA-256 y
@@ -48,6 +50,7 @@ Documentación para continuar el proyecto:
 - [Especificación de features](specs/FEATURES.md)
 - [Identidad y tenancy](specs/IDENTITY.md)
 - [Organizaciones, sedes y equipo](specs/ORGANIZATIONS.md)
+- [Checklists y sincronización](specs/CHECKLISTS.md)
 - [Contrato de errores HTTP](specs/API_ERRORS.md)
 - [Migraciones](specs/MIGRATIONS.md)
 - [Seguridad](specs/SECURITY.md)
@@ -132,6 +135,10 @@ go test ./...
 go test -race ./...
 go vet ./...
 ```
+
+La prueba de PostgreSQL del módulo checklist se activa opcionalmente con
+`TEST_DATABASE_URL`, únicamente si la base se llama `bpm_test`. Usa un esquema
+temporal aislado; no debe apuntar a producción.
 
 ## Configuración
 

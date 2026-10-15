@@ -40,6 +40,10 @@ Dispositivos, invitaciones, edición y desactivación siguen pendientes.
 
 ## 2. Checklists y sincronización offline
 
+Estado: primera versión vertical implementada (plantilla publicada, catálogo,
+borrador, respuestas y envío) y documentada en `CHECKLISTS.md`. Asignaciones,
+versiones posteriores, listado paginado y evidencias siguen pendientes.
+
 - Tablas: `checklist_templates`, `checklist_template_versions`,
   `checklist_items`, `checklist_assignments`, `checklist_runs`,
   `checklist_answers`, `idempotency_records`.
