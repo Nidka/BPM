@@ -68,13 +68,13 @@ func TestSessionPolicyPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	now = now.Add(time.Minute)
-	// Polling /me did not move last activity; boundary is inclusive and permanent.
+	// Consultar /me no actualiza la actividad; al alcanzar el límite, el contexto queda vencido.
 	for _, s := range []*application.Sessions{a, b, replica()} {
 		if _, err = s.Validate(ctx, identity, true); !errors.Is(err, contracts.ErrSessionExpired) {
 			t.Fatal("idle session reopened", err)
 		}
 	}
-	// A fresh authentication establishes another context; UID alone cannot reopen.
+	// Una autenticación nueva crea otro contexto; reutilizar el UID no reabre el anterior.
 	identity.AuthenticatedAt = now
 	if _, err = a.Validate(ctx, identity, true); err != nil {
 		t.Fatal(err)
@@ -99,7 +99,7 @@ func TestSessionPolicyPostgres(t *testing.T) {
 		})
 	}
 	wg.Wait()
-	// Another account with the same auth_time is independent.
+	// Otra cuenta con el mismo auth_time conserva un contexto independiente.
 	identity.UID = "other-person"
 	if _, err = b.Validate(ctx, identity, true); err != nil {
 		t.Fatal("revocation crossed identities", err)

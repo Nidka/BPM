@@ -22,7 +22,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Firebase is substituted here; authorization and queries use real PostgreSQL.
+// Firebase se sustituye por un doble; la autorización y las consultas usan PostgreSQL real.
 type tenantTestVerifier struct{}
 
 func (tenantTestVerifier) VerifyIDToken(_ context.Context, token string) (contracts.Identity, error) {

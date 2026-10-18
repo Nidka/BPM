@@ -1,7 +1,7 @@
 BEGIN;
 
--- No token, password or refresh credential is stored here. A Firebase context
--- may precede BPM registration, so user_id intentionally has no profile FK.
+-- No se almacenan tokens ni contraseñas. El contexto Firebase puede existir
+-- antes del registro BPM; por eso user_id no tiene una clave foránea al perfil.
 CREATE TABLE authentication_sessions (
     user_id VARCHAR(128) NOT NULL,
     authenticated_at TIMESTAMPTZ NOT NULL,

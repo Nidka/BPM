@@ -199,7 +199,7 @@ func Authenticate(verifier contracts.TokenVerifier, sessions ...contracts.Sessio
 			}
 
 			if len(sessions) > 0 && sessions[0] != nil {
-				// GET /me is a background access check, never a keep-alive.
+				// GET /me comprueba el acceso en segundo plano sin prolongar la sesión.
 				activity := !(request.Method == http.MethodGet && strings.HasSuffix(request.URL.Path, "/me"))
 				window, sessionErr := sessions[0].Validate(request.Context(), identity, activity)
 				if sessionErr != nil {

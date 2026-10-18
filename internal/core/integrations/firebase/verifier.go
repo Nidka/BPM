@@ -43,8 +43,8 @@ func New(ctx context.Context, cfg config.FirebaseConfig) (*Verifier, error) {
 }
 
 func (v *Verifier) VerifyIDToken(ctx context.Context, rawToken string) (contracts.Identity, error) {
-	// Revocation checking is deliberate for sensitive operational data. If this
-	// becomes a latency concern, add a short, bounded cache instead of skipping it.
+	// Se comprueba la revocación para proteger los datos operativos sensibles.
+	// Si afecta la latencia, usar una caché breve y acotada sin omitir la comprobación.
 	token, err := v.client.VerifyIDTokenAndCheckRevoked(ctx, rawToken)
 	if err != nil || token == nil || token.UID == "" {
 		return contracts.Identity{}, ErrInvalidToken

@@ -15,7 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// The deployment must fail before serving traffic if V2 has not been applied.
+// RequireSessionSchema impide atender tráfico si falta la migración V2.
 func RequireSessionSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	return identitypostgres.NewRepository(pool).RequireSessionSchema(ctx)
 }

@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// State is keyed by verified UID + Firebase auth_time, never by client timestamps
-// or the ID token's issue time (which changes during refresh).
+// El estado se identifica por el UID y auth_time verificados por Firebase.
+// Las fechas del cliente y la emisión de un token renovado no reinician la sesión.
 type SessionRepository interface {
 	CheckSession(context.Context, string, time.Time, time.Time, time.Duration, bool) (time.Time, error)
 	EndSession(context.Context, string, time.Time, time.Time) error

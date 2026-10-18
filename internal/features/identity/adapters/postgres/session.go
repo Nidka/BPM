@@ -19,8 +19,8 @@ func (r *Repository) RequireSessionSchema(ctx context.Context) error {
 
 func (r *Repository) CheckSession(ctx context.Context, uid string, start, now time.Time, idle time.Duration, activity bool) (time.Time, error) {
 	var last time.Time
-	// One atomic statement serializes concurrent checks across all replicas.
-	// Expired/revoked contexts remain as tombstones: refresh cannot reopen them.
+	// Una sentencia atómica serializa las comprobaciones entre réplicas.
+	// Se conservan los contextos vencidos o revocados para impedir su reapertura al renovar el token.
 	err := r.pool.QueryRow(ctx, `INSERT INTO authentication_sessions(user_id,authenticated_at,last_activity_at)
  VALUES($1,$2,$3) ON CONFLICT(user_id,authenticated_at) DO UPDATE
  SET last_activity_at=CASE WHEN $5 THEN GREATEST(authentication_sessions.last_activity_at,$3) ELSE authentication_sessions.last_activity_at END

@@ -17,8 +17,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Container is the composition root. Concrete infrastructure is created here
-// and injected into consumers through small interfaces or constructors.
+// Container es la raíz de composición. Aquí se crea la infraestructura concreta
+// y se inyecta mediante constructores e interfaces pequeñas.
 type Container struct {
 	Database      *pgxpool.Pool
 	TokenVerifier contracts.TokenVerifier

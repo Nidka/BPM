@@ -19,6 +19,8 @@ Antes de modificar código, leer en este orden:
 
 Reglas obligatorias:
 
+- Escribir comentarios, KDoc, GoDoc y documentación nueva en español; conservar los identificadores técnicos y nombres de API.
+
 - Go 1.27, monolito modular, arquitectura hexagonal y composición manual.
 - No usar un framework de inyección de dependencias. Los constructores reciben
   interfaces pequeñas y `internal/core/app` conecta las implementaciones.

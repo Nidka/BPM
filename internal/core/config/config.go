@@ -1,4 +1,4 @@
-// Package config owns the application's environment contract and validation.
+// Package config define y valida el contrato de configuración de la aplicación.
 package config
 
 import (
@@ -108,7 +108,7 @@ type ObservabilityConfig struct {
 }
 
 func Load() (Config, error) {
-	// Railway injects environment variables. Loading .env is only a local aid.
+	// Railway inyecta las variables de entorno. El archivo .env facilita únicamente el desarrollo local.
 	_ = godotenv.Load()
 	return loadFrom(os.Getenv)
 }

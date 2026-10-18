@@ -13,7 +13,7 @@ type SessionEnder interface {
 }
 
 func SessionActivity(w http.ResponseWriter, r *http.Request) {
-	// Authenticate has already checked and touched the session in PostgreSQL.
+	// Authenticate ya comprobó la sesión y registró su actividad en PostgreSQL.
 	response.JSON(w, http.StatusOK, map[string]any{"data": map[string]string{"status": "ACTIVE"}})
 }
 
