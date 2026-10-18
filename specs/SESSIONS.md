@@ -86,10 +86,11 @@ mayor que el plazo absoluto. Omitir estas variables usa los valores anteriores.
 
 ## Despliegue y compatibilidad
 
-Esta entrega está en ramas de trabajo. V2 se aplicó en PostgreSQL de Railway el
-18/10/2026 a las 02:20:15, hora de Lima, con autorización del usuario. No se han
-publicado los binarios nuevos ni cambiado variables de producción. La credencial
-PostgreSQL permanece sin cambios.
+El código de esta entrega se publica desde `main`, primero en frontend y después
+en backend. V2 se aplicó en PostgreSQL de Railway el 18/10/2026 a las 02:20:15,
+hora de Lima, con autorización del usuario. La migración no cambió variables de
+producción ni la credencial PostgreSQL. Para confirmar la versión activa,
+contrastar CI y el estado de despliegue con `/health` y las respuestas públicas.
 
 ### Ejecución comprobada en Railway
 
@@ -110,8 +111,8 @@ PostgreSQL permanece sin cambios.
   `4b32b2499aa23ce115e5c5e7b96673e450cedb496a840f3c2d87b3e01b9022d0`.
 
 V2 ya está aplicada en esta base: no volver a ejecutarla ni editar su contenido.
-La creación de la tabla no activa los límites de sesión; falta publicar primero
-el frontend compatible y después el backend nuevo.
+La creación de la tabla por sí sola no activa los límites de sesión; su activación
+requiere publicar el frontend compatible y después el backend nuevo.
 
 Orden de publicación (el paso 2 ya se completó en esta base de Railway):
 
