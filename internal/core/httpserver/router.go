@@ -26,7 +26,7 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dependencies Dependencies
 
 	router.Use(httpmiddleware.RequestID)
 	router.Use(httpmiddleware.Recover(logger))
-	router.Use(httpmiddleware.SecurityHeaders(cfg.App.IsProductionLike(), cfg.HTTP.HSTSMaxAgeSeconds))
+	router.Use(httpmiddleware.SecurityHeaders(cfg.App.IsProductionLike() || cfg.HTTP.HSTSEnabled, cfg.HTTP.HSTSMaxAgeSeconds))
 	router.Use(httpmiddleware.CORS(cfg.HTTP.AllowedOrigins))
 	router.Use(httpmiddleware.BodyLimit(cfg.HTTP.MaxJSONBodyBytes))
 	router.Use(rateLimiter.Middleware)

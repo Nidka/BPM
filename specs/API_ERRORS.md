@@ -50,3 +50,8 @@ arreglo, incluso cuando existe un solo error:
 los errores comparables de su dominio; la capa de aplicación y el dominio no
 conocen códigos HTTP ni DTO JSON.
 
+`401 SESSION_EXPIRED` indica vencimiento absoluto/inactividad o cierre del
+contexto BPM. El cliente debe pedir autenticación nueva; renovar el token no
+extiende esa sesión. `503 AUTHENTICATION_UNAVAILABLE` también se utiliza cuando
+no se puede consultar el estado de sesión; nunca autoriza por defecto.
+

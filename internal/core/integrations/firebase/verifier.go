@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"time"
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
@@ -52,9 +53,10 @@ func (v *Verifier) VerifyIDToken(ctx context.Context, rawToken string) (contract
 	email, _ := token.Claims["email"].(string)
 	emailVerified, _ := token.Claims["email_verified"].(bool)
 	return contracts.Identity{
-		UID:           token.UID,
-		Email:         email,
-		EmailVerified: emailVerified,
+		UID:             token.UID,
+		Email:           email,
+		EmailVerified:   emailVerified,
+		AuthenticatedAt: time.Unix(token.AuthTime, 0).UTC(),
 	}, nil
 }
 

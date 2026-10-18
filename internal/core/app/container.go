@@ -45,6 +45,10 @@ func NewContainer(
 		return nil, err
 	}
 
+	if err := identity.RequireSessionSchema(ctx, pool); err != nil {
+		return fail(err)
+	}
+
 	if cfg.Firebase.Enabled {
 		container.TokenVerifier, err = firebaseauth.New(ctx, cfg.Firebase)
 		if err != nil {
@@ -62,17 +66,23 @@ func NewContainer(
 	}
 
 	identityModule, err := identity.New(identity.Dependencies{
-		Database:      container.Database,
-		TokenVerifier: container.TokenVerifier,
-		Logger:        logger,
+		Database:               container.Database,
+		TokenVerifier:          container.TokenVerifier,
+		Logger:                 logger,
+		SessionAbsoluteTimeout: cfg.Session.AbsoluteTimeout,
+		SessionIdleTimeout:     cfg.Session.IdleTimeout,
 	})
 	if err != nil {
 		return fail(err)
 	}
 
 	router := httpserver.NewRouter(cfg, logger, httpserver.Dependencies{
-		Database:  container.Database,
-		APIRoutes: []httpserver.APIRouteRegistrar{identityModule.RegisterRoutes, organizations.Routes(container.Database, container.TokenVerifier, logger), checklists.Routes(container.Database, container.TokenVerifier, logger)},
+		Database: container.Database,
+		APIRoutes: []httpserver.APIRouteRegistrar{
+			identityModule.RegisterRoutes,
+			organizations.Routes(container.Database, container.TokenVerifier, logger, identityModule.Sessions),
+			checklists.Routes(container.Database, container.TokenVerifier, logger, identityModule.Sessions),
+		},
 	})
 	container.Server = httpserver.New(cfg, logger, router, startupReporter)
 	return container, nil

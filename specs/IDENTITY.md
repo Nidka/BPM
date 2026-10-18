@@ -2,6 +2,11 @@
 
 ## Alcance implementado
 
+Las rutas protegidas aplican además la [política de sesiones](SESSIONS.md):
+8 horas desde `auth_time`, 15 minutos sin actividad y revocación persistente.
+`GET /me` comprueba el acceso sin renovar la actividad. Existen
+`POST /auth/activity` y `POST /auth/logout`, bajo el mismo prefijo `/api/v1`.
+
 El primer recorrido vertical es `GET /api/v1/me`. Resuelve la sesión del usuario
 sin almacenar ni recibir contraseñas en la API.
 

@@ -1,5 +1,17 @@
 # Despliegue automático en Railway
 
+Actualización del 18/10/2026: la API ya está publicada como BPM-service en
+`https://bpm-service-production.up.railway.app`; `/health` y `/ready` respondieron
+200 y la versión publicada coincide con el commit remoto `7b3f94f`. Las secciones
+de creación siguientes son instrucciones de instalación inicial, no tareas por
+repetir sobre el servicio existente. Los ajustes de consola (Wait for CI,
+healthcheck, variables y permisos) deben confirmarse allí; no se certifican
+únicamente por estar documentados.
+
+Para la entrega de seguridad consultar [specs/SESSIONS.md](specs/SESSIONS.md):
+requiere aplicar V2 antes del backend nuevo y publicar primero el frontend
+compatible. Esta migración no se ha ejecutado en Railway.
+
 ## Arquitectura del despliegue
 
 ```text

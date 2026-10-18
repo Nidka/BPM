@@ -39,3 +39,9 @@ ejecuta desde cero.
 Hasta implementar el runner, la ejecución es manual y debe usar
 `ON_ERROR_STOP=1`; Railway no debe ejecutar automáticamente el baseline sobre la
 base ya creada.
+
+`V2__authentication_sessions.sql` añade exclusivamente el estado técnico de
+sesiones. Debe aplicarse antes de desplegar el backend que la exige; consultar
+[SESSIONS.md](SESSIONS.md). Los volúmenes Docker ya existentes no ejecutan scripts
+de inicialización nuevos automáticamente: aplicar V2 una vez en la base local
+correspondiente. No borrar volúmenes con datos para forzar la inicialización.

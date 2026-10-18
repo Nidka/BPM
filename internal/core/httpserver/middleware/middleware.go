@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"log/slog"
 	"net"
 	"net/http"
@@ -154,7 +155,7 @@ func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
 			}
 			writer.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
 			writer.Header().Set("Access-Control-Allow-Headers", "Authorization,Content-Type,Idempotency-Key,If-Match,X-Request-ID")
-			writer.Header().Set("Access-Control-Expose-Headers", "ETag,X-Request-ID")
+			writer.Header().Set("Access-Control-Expose-Headers", "ETag,X-Request-ID,X-BPM-Session-Expires-At,X-BPM-Session-Idle-Expires-At")
 			writer.Header().Set("Access-Control-Max-Age", "600")
 
 			if request.Method == http.MethodOptions {
@@ -177,7 +178,7 @@ func BodyLimit(maxBytes int64) func(http.Handler) http.Handler {
 	}
 }
 
-func Authenticate(verifier contracts.TokenVerifier) func(http.Handler) http.Handler {
+func Authenticate(verifier contracts.TokenVerifier, sessions ...contracts.SessionValidator) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			if verifier == nil {
@@ -195,6 +196,22 @@ func Authenticate(verifier contracts.TokenVerifier) func(http.Handler) http.Hand
 			if err != nil {
 				unauthorized(writer, request)
 				return
+			}
+
+			if len(sessions) > 0 && sessions[0] != nil {
+				// GET /me is a background access check, never a keep-alive.
+				activity := !(request.Method == http.MethodGet && strings.HasSuffix(request.URL.Path, "/me"))
+				window, sessionErr := sessions[0].Validate(request.Context(), identity, activity)
+				if sessionErr != nil {
+					if errors.Is(sessionErr, contracts.ErrSessionExpired) {
+						response.Error(writer, http.StatusUnauthorized, RequestIDFromContext(request.Context()), response.APIError{Code: "SESSION_EXPIRED", Message: "Tu sesión venció. Inicia sesión nuevamente."})
+					} else {
+						response.AuthenticationUnavailable(writer, RequestIDFromContext(request.Context()))
+					}
+					return
+				}
+				writer.Header().Set("X-BPM-Session-Expires-At", strconv.FormatInt(window.AbsoluteExpiresAt.Unix(), 10))
+				writer.Header().Set("X-BPM-Session-Idle-Expires-At", strconv.FormatInt(window.IdleExpiresAt.Unix(), 10))
 			}
 			ctx := context.WithValue(request.Context(), identityKey, identity)
 			next.ServeHTTP(writer, request.WithContext(ctx))

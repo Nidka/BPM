@@ -2,6 +2,9 @@
 
 ## Identidad y autorización
 
+La política de 8 horas, inactividad, revocación y publicación está en
+[SESSIONS.md](SESSIONS.md). Se aplica también a organizaciones y checklists.
+
 - Firebase Auth administra credenciales; la API nunca recibe ni almacena
   contraseñas.
 - La API valida firma, proyecto, expiración y revocación del ID token.

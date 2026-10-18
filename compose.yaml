@@ -11,6 +11,7 @@ services:
     volumes:
       - bpm_postgres_data:/var/lib/postgresql/data
       - ./migraciones/V1__baseline.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+      - ./migraciones/V2__authentication_sessions.sql:/docker-entrypoint-initdb.d/002_sessions.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bpm -d bpm"]
       interval: 5s

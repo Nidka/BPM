@@ -11,6 +11,7 @@ type Routes struct {
 	authenticate      func(http.Handler) http.Handler
 	registration      *RegisterHandler
 	registrationLimit func(http.Handler) http.Handler
+	sessions          SessionEnder
 }
 
 func NewRoutes(handler *Handler, authenticate func(http.Handler) http.Handler) *Routes {
@@ -19,9 +20,18 @@ func NewRoutes(handler *Handler, authenticate func(http.Handler) http.Handler) *
 
 func (routes *Routes) Register(router chi.Router) {
 	router.With(routes.authenticate).Get("/me", routes.handler.Me)
+	if routes.sessions != nil {
+		router.With(routes.authenticate).Post("/auth/activity", SessionActivity)
+		router.With(routes.authenticate).Post("/auth/logout", SessionLogout(routes.sessions))
+	}
 	if routes.registration != nil {
 		router.With(routes.registrationLimit, routes.authenticate).Post("/auth/register", routes.registration.Register)
 	}
+}
+
+func (routes *Routes) WithSessions(sessions SessionEnder) *Routes {
+	routes.sessions = sessions
+	return routes
 }
 
 func (routes *Routes) WithRegistration(handler *RegisterHandler, limiter func(http.Handler) http.Handler) *Routes {

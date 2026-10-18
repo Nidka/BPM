@@ -54,6 +54,7 @@ Documentación para continuar el proyecto:
 - [Contrato de errores HTTP](specs/API_ERRORS.md)
 - [Migraciones](specs/MIGRATIONS.md)
 - [Seguridad](specs/SECURITY.md)
+- [Sesiones, límites y publicación de V2](specs/SESSIONS.md)
 - [Railway](RAILWAY.md)
 
 ## Requisitos

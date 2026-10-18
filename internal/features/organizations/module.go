@@ -11,7 +11,7 @@ import (
 	"log/slog"
 )
 
-func Routes(pool *pgxpool.Pool, verifier contracts.TokenVerifier, logger *slog.Logger) func(chi.Router) {
+func Routes(pool *pgxpool.Pool, verifier contracts.TokenVerifier, logger *slog.Logger, sessions ...contracts.SessionValidator) func(chi.Router) {
 	h := httpadapter.New(application.New(postgres.New(pool)), logger)
-	return func(r chi.Router) { h.Register(r, middleware.Authenticate(verifier)) }
+	return func(r chi.Router) { h.Register(r, middleware.Authenticate(verifier, sessions...)) }
 }

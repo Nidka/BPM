@@ -25,12 +25,15 @@ const (
 type Config struct {
 	App           AppConfig
 	HTTP          HTTPConfig
+	Session       SessionConfig
 	Database      DatabaseConfig
 	Firebase      FirebaseConfig
 	R2            R2Config
 	Email         EmailConfig
 	Observability ObservabilityConfig
 }
+
+type SessionConfig struct{ AbsoluteTimeout, IdleTimeout time.Duration }
 
 type AppConfig struct {
 	Name        string
@@ -59,6 +62,7 @@ type HTTPConfig struct {
 	RateLimitBurst    int
 	TrustProxyHeaders bool
 	HSTSMaxAgeSeconds int
+	HSTSEnabled       bool
 }
 
 func (c HTTPConfig) Address() string {
@@ -207,7 +211,9 @@ func loadFrom(getenv func(string) string) (Config, error) {
 			RateLimitBurst:    integer("HTTP_RATE_LIMIT_BURST", 100),
 			TrustProxyHeaders: boolean("HTTP_TRUST_PROXY_HEADERS", false),
 			HSTSMaxAgeSeconds: integer("HTTP_HSTS_MAX_AGE_SECONDS", 31536000),
+			HSTSEnabled:       boolean("HTTP_HSTS_ENABLED", getenv("APP_ENV") == Production || getenv("APP_ENV") == Staging || getenv("RAILWAY_ENVIRONMENT_NAME") != ""),
 		},
+		Session: SessionConfig{AbsoluteTimeout: duration("AUTH_SESSION_ABSOLUTE_TIMEOUT", 8*time.Hour), IdleTimeout: duration("AUTH_SESSION_IDLE_TIMEOUT", 15*time.Minute)},
 		Database: DatabaseConfig{
 			URL:               strings.TrimSpace(getenv("DATABASE_URL")),
 			MinConnections:    int32(integer("DB_POOL_MIN_SIZE", 2)),
@@ -272,6 +278,12 @@ func (c Config) Validate() error {
 	}
 	if c.HTTP.RateLimitRPS <= 0 || c.HTTP.RateLimitBurst < 1 {
 		errs = append(errs, fmt.Errorf("HTTP rate limit values must be positive"))
+	}
+	if c.HTTP.HSTSMaxAgeSeconds < 1 || c.HTTP.HSTSMaxAgeSeconds > 31536000 {
+		errs = append(errs, errors.New("HTTP_HSTS_MAX_AGE_SECONDS must be between 1 and 31536000"))
+	}
+	if c.Session.AbsoluteTimeout <= 0 || c.Session.AbsoluteTimeout > 8*time.Hour || c.Session.IdleTimeout <= 0 || c.Session.IdleTimeout > c.Session.AbsoluteTimeout {
+		errs = append(errs, errors.New("session timeouts must be positive, idle <= absolute <= 8h"))
 	}
 	for _, origin := range c.HTTP.AllowedOrigins {
 		if origin == "*" && c.App.IsProductionLike() {

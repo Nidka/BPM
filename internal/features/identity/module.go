@@ -1,8 +1,10 @@
 package identity
 
 import (
+	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/Nidka/BPM-service/internal/core/contracts"
 	httpmiddleware "github.com/Nidka/BPM-service/internal/core/httpserver/middleware"
@@ -13,14 +15,22 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// The deployment must fail before serving traffic if V2 has not been applied.
+func RequireSessionSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return identitypostgres.NewRepository(pool).RequireSessionSchema(ctx)
+}
+
 type Dependencies struct {
-	Database      *pgxpool.Pool
-	TokenVerifier contracts.TokenVerifier
-	Logger        *slog.Logger
+	Database               *pgxpool.Pool
+	TokenVerifier          contracts.TokenVerifier
+	Logger                 *slog.Logger
+	SessionAbsoluteTimeout time.Duration
+	SessionIdleTimeout     time.Duration
 }
 
 type Module struct {
-	routes *identityhttp.Routes
+	routes   *identityhttp.Routes
+	Sessions contracts.SessionValidator
 }
 
 func New(dependencies Dependencies) (*Module, error) {
@@ -32,12 +42,21 @@ func New(dependencies Dependencies) (*Module, error) {
 	}
 
 	repository := identitypostgres.NewRepository(dependencies.Database)
+	absolute, idle := dependencies.SessionAbsoluteTimeout, dependencies.SessionIdleTimeout
+	if absolute == 0 {
+		absolute = 8 * time.Hour
+	}
+	if idle == 0 {
+		idle = 15 * time.Minute
+	}
+	sessions := application.NewSessions(repository, absolute, idle, time.Now)
 	getCurrentProfile := application.NewGetCurrentProfile(repository)
 	handler := identityhttp.NewHandler(getCurrentProfile, dependencies.Logger)
 	registerHandler := identityhttp.NewRegisterHandler(application.NewRegister(repository), dependencies.Logger)
 	registrationLimit := httpmiddleware.NewIPRateLimiter(0.2, 5, false)
 	return &Module{
-		routes: identityhttp.NewRoutes(handler, httpmiddleware.Authenticate(dependencies.TokenVerifier)).WithRegistration(registerHandler, registrationLimit.Middleware),
+		Sessions: sessions,
+		routes:   identityhttp.NewRoutes(handler, httpmiddleware.Authenticate(dependencies.TokenVerifier, sessions)).WithRegistration(registerHandler, registrationLimit.Middleware).WithSessions(sessions),
 	}, nil
 }
 

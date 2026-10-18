@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestLoadFromDevelopment(t *testing.T) {
@@ -23,6 +24,41 @@ func TestLoadFromDevelopment(t *testing.T) {
 	}
 	if cfg.Firebase.Enabled || cfg.R2.Enabled {
 		t.Fatal("external integrations must be opt-in during development")
+	}
+}
+
+func TestSessionTimeoutConfiguration(t *testing.T) {
+	for _, tc := range []struct {
+		name, absolute, idle string
+		valid                bool
+	}{
+		{"defaults", "", "", true}, {"shorter limits", "4h", "10m", true},
+		{"disabled absolute", "0s", "15m", false}, {"disabled idle", "8h", "0s", false},
+		{"exceeds requirement", "9h", "15m", false}, {"idle exceeds absolute", "10m", "15m", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			values := map[string]string{"DATABASE_URL": "postgres://test:test@localhost/bpm_test", "AUTH_SESSION_ABSOLUTE_TIMEOUT": tc.absolute, "AUTH_SESSION_IDLE_TIMEOUT": tc.idle}
+			cfg, err := loadFrom(func(key string) string { return values[key] })
+			if (err == nil) != tc.valid {
+				t.Fatal("unexpected validation", err)
+			}
+			if tc.name == "defaults" && (cfg.Session.AbsoluteTimeout != 8*time.Hour || cfg.Session.IdleTimeout != 15*time.Minute) {
+				t.Fatal("incorrect defaults")
+			}
+		})
+	}
+}
+
+func TestRailwayHSTSDoesNotDependOnForwardedHeaders(t *testing.T) {
+	values := map[string]string{"DATABASE_URL": "postgres://test:test@localhost/bpm_test", "RAILWAY_ENVIRONMENT_NAME": "production"}
+	cfg, err := loadFrom(func(key string) string { return values[key] })
+	if err != nil || !cfg.HTTP.HSTSEnabled {
+		t.Fatal("Railway must enable HSTS", err)
+	}
+	delete(values, "RAILWAY_ENVIRONMENT_NAME")
+	cfg, err = loadFrom(func(key string) string { return values[key] })
+	if err != nil || cfg.HTTP.HSTSEnabled {
+		t.Fatal("local HTTP should not acquire HSTS", err)
 	}
 }
 

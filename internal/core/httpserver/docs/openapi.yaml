@@ -56,13 +56,78 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/APIInfoResponse"
+  /api/v1/auth/activity:
+    post:
+      tags: [Identidad]
+      summary: Registrar actividad explícita de una sesión vigente
+      description: >-
+        No recibe cuerpo. Comprueba 8 horas desde auth_time y 15 minutos sin
+        actividad; una sesión vencida exige autenticación nueva. No llamar
+        periódicamente sin interacción del usuario.
+      operationId: recordSessionActivity
+      security:
+        - FirebaseBearer: []
+      responses:
+        "200":
+          description: Sesión técnica vigente; no concede permisos de empresa.
+          headers:
+            X-BPM-Session-Expires-At:
+              description: Límite absoluto en segundos Unix.
+              schema: { type: integer, format: int64 }
+            X-BPM-Session-Idle-Expires-At:
+              description: Límite de inactividad en segundos Unix.
+              schema: { type: integer, format: int64 }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [status]
+                    properties:
+                      status: { type: string, enum: [ACTIVE] }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /api/v1/auth/logout:
+    post:
+      tags: [Identidad]
+      summary: Revocar el contexto autenticado actual
+      description: >-
+        No recibe cuerpo. Impide reabrir el mismo UID/auth_time mediante refresh.
+        No revoca todas las otras autenticaciones de la cuenta.
+      operationId: endCurrentSession
+      security:
+        - FirebaseBearer: []
+      responses:
+        "200":
+          description: Contexto revocado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [status]
+                    properties:
+                      status: { type: string, enum: [SIGNED_OUT] }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /api/v1/me:
     get:
       tags: [Identidad]
       summary: Obtener el perfil del usuario autenticado
       description: >-
         Valida el ID token de Firebase y devuelve el usuario, sus membresías,
-        roles y locales activos registrados en PostgreSQL.
+        roles y locales activos registrados en PostgreSQL. Comprueba límites de
+        sesión sin prolongar actividad; devuelve las dos cabeceras X-BPM-Session.
       operationId: getCurrentProfile
       security:
         - FirebaseBearer: []
@@ -439,7 +504,7 @@ components:
         application/json:
           schema: {$ref: "#/components/schemas/ErrorResponse"}
     Unauthenticated:
-      description: Token ausente, inválido, vencido o revocado.
+      description: Token ausente, inválido, vencido o revocado; SESSION_EXPIRED si el contexto BPM venció o fue cerrado.
       content:
         application/json:
           schema:

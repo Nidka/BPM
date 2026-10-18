@@ -4,15 +4,33 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/Nidka/BPM-service/internal/core/contracts"
+	"github.com/Nidka/BPM-service/internal/core/httpserver/middleware"
+	organizationhttp "github.com/Nidka/BPM-service/internal/features/organizations/adapters/http"
 	"github.com/Nidka/BPM-service/internal/features/organizations/application"
 	"github.com/Nidka/BPM-service/internal/features/organizations/domain"
+	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// Firebase is substituted here; authorization and queries use real PostgreSQL.
+type tenantTestVerifier struct{}
+
+func (tenantTestVerifier) VerifyIDToken(_ context.Context, token string) (contracts.Identity, error) {
+	if token != "worker" && token != "admin" && token != "chef" {
+		return contracts.Identity{}, errors.New("invalid token")
+	}
+	return contracts.Identity{UID: token, EmailVerified: true}, nil
+}
 
 // Solo una base explícitamente de pruebas. Cada ejecución usa un esquema propio
 // con la migración real; no toca usuarios u organizaciones de public.
@@ -126,9 +144,50 @@ func TestWorkspacePostgres(t *testing.T) {
 	if err != nil || len(orgs) != 1 || orgs[0].ID != org.ID {
 		t.Fatal("tenant list scope", err)
 	}
+	exec(`INSERT INTO application_users(id,email,display_name,platform_role) VALUES('chef','chef@example.invalid','Chef','USER')`)
+	if err = service.AddMember(ctx, "admin", org.ID, "chef@example.invalid", "CHEF", []string{loc.ID}); err != nil {
+		t.Fatal(err)
+	}
+	chef, err := service.Workspace(ctx, "chef", org.ID)
+	if err != nil || len(chef.Locations) != 1 || len(chef.Members) != 0 {
+		t.Fatal("chef scope", err)
+	}
+	router := chi.NewRouter()
+	organizationhttp.New(service, slog.New(slog.NewTextHandler(io.Discard, nil))).Register(router, middleware.Authenticate(tenantTestVerifier{}))
+	for _, tc := range []struct {
+		name, token, method, path, body string
+		status                          int
+	}{
+		{"worker cannot change tenant in URL", "worker", "GET", "/organizations/" + other.ID + "/workspace", "", 403},
+		{"admin cannot write another tenant", "admin", "POST", "/organizations/" + other.ID + "/locations", `{"id":"20000000-0000-0000-0000-000000000099","name":"Valid","address":"Valid address"}`, 403},
+		{"worker cannot add members", "worker", "POST", "/organizations/" + org.ID + "/members", `{"email":"outsider@example.invalid","role":"ADMIN","locationIds":[]}`, 403},
+		{"chef cannot write locations", "chef", "POST", "/organizations/" + org.ID + "/locations", `{"id":"20000000-0000-0000-0000-000000000099","name":"Valid","address":"Valid address"}`, 403},
+		{"platform privilege cannot be assigned", "admin", "POST", "/organizations/" + org.ID + "/members", `{"email":"outsider@example.invalid","role":"SUPER_ADMIN","locationIds":[]}`, 422},
+		{"worker cannot see team via spoofed role", "worker", "GET", "/organizations/" + org.ID + "/workspace", "", 200},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
+			request.Header.Set("Authorization", "Bearer "+tc.token)
+			request.Header.Set("Content-Type", "application/json")
+			request.Header.Set("X-Organization-ID", other.ID)
+			request.Header.Set("X-Role", "SUPER_ADMIN")
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, request)
+			if recorder.Code != tc.status {
+				t.Fatal("unexpected access", recorder.Code, recorder.Body.String())
+			}
+			if tc.status == 200 && (!strings.Contains(recorder.Body.String(), `"role":"WORKER"`) || !strings.Contains(recorder.Body.String(), `"members":[]`)) {
+				t.Fatal("client headers granted permissions")
+			}
+		})
+	}
 	exec(`UPDATE organization_memberships SET status='INACTIVE' WHERE organization_id=$1 AND user_id='worker'`, org.ID)
 	if _, err = service.Workspace(ctx, "worker", org.ID); !errors.Is(err, domain.ErrDenied) {
 		t.Fatal("inactive membership accepted")
+	}
+	exec(`UPDATE organizations SET status='INACTIVE' WHERE id=$1`, other.ID)
+	if _, err = service.Workspace(ctx, "root", other.ID); !errors.Is(err, domain.ErrDenied) {
+		t.Fatal("inactive tenant accepted", err)
 	}
 	exec(`UPDATE application_users SET status='INACTIVE' WHERE id='root'`)
 	if _, err = service.List(ctx, "root"); !errors.Is(err, domain.ErrDenied) {
