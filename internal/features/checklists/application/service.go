@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/Nidka/BPM-service/internal/shared/application/pagination"
 	"math"
 	"regexp"
 	"slices"
@@ -19,6 +20,7 @@ import (
 type Store interface {
 	Actor(context.Context, string, string) (domain.Actor, error)
 	LocationAccess(context.Context, domain.Actor, string, string) error
+	CatalogPage(context.Context, string, pagination.Window, string) ([]domain.Template, error)
 	Catalog(context.Context, string) ([]domain.Template, error)
 	CreateTemplate(context.Context, domain.Actor, string, domain.Template) error
 	CreateRun(context.Context, domain.Actor, domain.Run) (domain.Run, error)

@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"github.com/Nidka/BPM-service/internal/shared/application/pagination"
 	"net/mail"
 	"regexp"
 	"strings"
@@ -11,12 +12,17 @@ import (
 	"github.com/Nidka/BPM-service/internal/features/organizations/domain"
 )
 
-// Store is scoped to one transaction. Authorization and writes share its snapshot
-// and locks, so a request cannot substitute another organization's membership.
+// Store pertenece a una transacción. La autorización y las escrituras comparten
+// bloqueos para impedir que se sustituya la membresía por la de otra organización.
 type Store interface {
 	Actor(context.Context, string) (domain.Actor, error)
+	OrganizationsPage(context.Context, domain.Actor, pagination.Window) ([]domain.Organization, error)
+	LocationsPage(context.Context, domain.Actor, string, string, pagination.Window) ([]domain.Location, error)
+	MembersPage(context.Context, string, pagination.Window) ([]domain.Member, error)
+	EntriesPage(context.Context, domain.Actor, string, string, string, pagination.Window) ([]domain.Entry, error)
 	Organizations(context.Context, domain.Actor) ([]domain.Organization, error)
 	Role(context.Context, domain.Actor, string) (string, error)
+	WorkspacePage(context.Context, domain.Actor, string, string, int) (domain.Workspace, error)
 	Workspace(context.Context, domain.Actor, string, string) (domain.Workspace, error)
 	CreateOrganization(context.Context, domain.Actor, domain.Organization) error
 	CreateLocation(context.Context, domain.Actor, string, domain.Location) error

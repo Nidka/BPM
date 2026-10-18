@@ -201,13 +201,17 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
   /api/v1/organizations:
     get:
+      parameters:
+        - {$ref: "#/components/parameters/PageSize"}
+        - {$ref: "#/components/parameters/PageToken"}
+        - {$ref: "#/components/parameters/SearchQuery"}
       tags: [Organizaciones]
-      summary: Listar organizaciones activas autorizadas (máximo 100)
+      summary: Listar organizaciones activas autorizadas por páginas
       operationId: listOrganizations
       security: [{FirebaseBearer: []}]
       responses:
         "200":
-          description: Solo membresías activas; SUPER_ADMIN puede consultar todas.
+          description: Solo membresías activas; SUPER_ADMIN puede consultar todas. Sin query conserva 100 registros por compatibilidad; con parámetros usa 25 salvo pageSize explícito.
           content:
             application/json:
               schema:
@@ -217,6 +221,7 @@ paths:
                     type: array
                     maxItems: 100
                     items: {$ref: "#/components/schemas/WorkspaceOrganization"}
+                  pagination: {$ref: "#/components/schemas/Pagination"}
         default: {$ref: "#/components/responses/WorkspaceError"}
     post:
       tags: [Organizaciones]
@@ -243,10 +248,12 @@ paths:
     parameters:
       - {$ref: "#/components/parameters/OrganizationID"}
     get:
+      parameters:
+        - {$ref: "#/components/parameters/PageSize"}
       tags: [Organizaciones]
       summary: Consultar espacio de trabajo autorizado
       operationId: getWorkspace
-      description: Sedes asignadas; miembros solo para ADMIN/SUPER_ADMIN. Catálogo publicado, plantillas activas e incidencias visibles. Cada lista limita a 100; no son totales globales. WORKER ve solo sus incidencias.
+      description: Primera página de cada lista autorizada y cursores independientes. Admite solo pageSize; 25 por defecto con query y 100 sin query por compatibilidad. Totals cuenta todas las sedes permitidas, cursos publicados y controles publicados. WORKER ve solo sus incidencias.
       security: [{FirebaseBearer: []}]
       responses:
         "200":
@@ -261,6 +268,32 @@ paths:
   /api/v1/organizations/{organizationID}/locations:
     parameters:
       - {$ref: "#/components/parameters/OrganizationID"}
+    get:
+      parameters:
+        - {$ref: "#/components/parameters/PageSize"}
+        - {$ref: "#/components/parameters/PageToken"}
+        - {$ref: "#/components/parameters/SearchQuery"}
+      tags: [Organizaciones]
+      summary: Listar sedes autorizadas
+      operationId: listLocations
+      description: Miembro activo; CHEF y WORKER solo sedes asignadas. Búsqueda por nombre, dirección o distrito.
+      security: [{FirebaseBearer: []}]
+      responses:
+        "200":
+          description: Página autorizada. Cursor vacío significa fin; no se devuelve un total de páginas.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 100
+                    items: {$ref: "#/components/schemas/WorkspaceLocation"}
+                  pagination: {$ref: "#/components/schemas/Pagination"}
+        "400": {$ref: "#/components/responses/InvalidPagination"}
+        default: {$ref: "#/components/responses/WorkspaceError"}
     post:
       tags: [Organizaciones]
       summary: Crear sede (ADMIN del tenant o SUPER_ADMIN)
@@ -285,6 +318,32 @@ paths:
   /api/v1/organizations/{organizationID}/members:
     parameters:
       - {$ref: "#/components/parameters/OrganizationID"}
+    get:
+      parameters:
+        - {$ref: "#/components/parameters/PageSize"}
+        - {$ref: "#/components/parameters/PageToken"}
+        - {$ref: "#/components/parameters/SearchQuery"}
+      tags: [Organizaciones]
+      summary: Listar personas del equipo
+      operationId: listMembers
+      description: Solo ADMIN del tenant o SUPER_ADMIN. Búsqueda por nombre o correo.
+      security: [{FirebaseBearer: []}]
+      responses:
+        "200":
+          description: Página autorizada. Cursor vacío significa fin; no se devuelve un total de páginas.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 100
+                    items: {$ref: "#/components/schemas/WorkspaceMember"}
+                  pagination: {$ref: "#/components/schemas/Pagination"}
+        "400": {$ref: "#/components/responses/InvalidPagination"}
+        default: {$ref: "#/components/responses/WorkspaceError"}
     post:
       tags: [Organizaciones]
       summary: Agregar una cuenta BPM activa al equipo
@@ -323,10 +382,14 @@ paths:
     parameters:
       - {$ref: "#/components/parameters/OrganizationID"}
     get:
+      parameters:
+        - {$ref: "#/components/parameters/PageSize"}
+        - {$ref: "#/components/parameters/PageToken"}
+        - {$ref: "#/components/parameters/SearchQuery"}
       tags: [Checklists]
       summary: Descargar catálogo de plantillas publicadas
       operationId: listChecklists
-      description: Requiere membresía activa. Devuelve hasta 100 plantillas con su versión publicada más reciente e ítems, útil para caché offline.
+      description: Requiere membresía activa en cada página. Selecciona plantillas completas antes de sus preguntas; nunca divide una plantilla entre páginas. Sin query conserva 100 por compatibilidad. Búsqueda por nombre, área o descripción.
       security: [{FirebaseBearer: []}]
       responses:
         "200":
@@ -339,6 +402,7 @@ paths:
                   data:
                     type: array
                     items: {$ref: "#/components/schemas/ChecklistTemplate"}
+                  pagination: {$ref: "#/components/schemas/Pagination"}
         default: {$ref: "#/components/responses/WorkspaceError"}
     post:
       tags: [Checklists]
@@ -354,6 +418,116 @@ paths:
       responses:
         "201":
           description: Plantilla y versión publicadas.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {$ref: "#/components/schemas/ChecklistTemplate"}
+        default: {$ref: "#/components/responses/WorkspaceError"}
+  /api/v1/organizations/{organizationID}/courses:
+    parameters:
+      - {$ref: "#/components/parameters/OrganizationID"}
+    get:
+      parameters:
+        - {$ref: "#/components/parameters/PageSize"}
+        - {$ref: "#/components/parameters/PageToken"}
+        - {$ref: "#/components/parameters/SearchQuery"}
+      tags: [Organizaciones]
+      summary: Listar cursos publicados
+      operationId: listCourses
+      description: Miembro activo. Incluye progreso del solicitante. Búsqueda por título o descripción.
+      security: [{FirebaseBearer: []}]
+      responses:
+        "200":
+          description: Página autorizada. Cursor vacío significa fin; no se devuelve un total de páginas.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 100
+                    items: {$ref: "#/components/schemas/WorkspaceEntry"}
+                  pagination: {$ref: "#/components/schemas/Pagination"}
+        "400": {$ref: "#/components/responses/InvalidPagination"}
+        default: {$ref: "#/components/responses/WorkspaceError"}
+  /api/v1/organizations/{organizationID}/checklist-summaries:
+    parameters:
+      - {$ref: "#/components/parameters/OrganizationID"}
+    get:
+      parameters:
+        - {$ref: "#/components/parameters/PageSize"}
+        - {$ref: "#/components/parameters/PageToken"}
+        - {$ref: "#/components/parameters/SearchQuery"}
+      tags: [Organizaciones]
+      summary: Listar resúmenes de plantillas activas
+      operationId: listChecklistSummaries
+      description: Miembro activo. Este resumen no sustituye el catálogo publicado con preguntas.
+      security: [{FirebaseBearer: []}]
+      responses:
+        "200":
+          description: Página autorizada. Cursor vacío significa fin; no se devuelve un total de páginas.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 100
+                    items: {$ref: "#/components/schemas/WorkspaceEntry"}
+                  pagination: {$ref: "#/components/schemas/Pagination"}
+        "400": {$ref: "#/components/responses/InvalidPagination"}
+        default: {$ref: "#/components/responses/WorkspaceError"}
+  /api/v1/organizations/{organizationID}/incidents:
+    parameters:
+      - {$ref: "#/components/parameters/OrganizationID"}
+    get:
+      parameters:
+        - {$ref: "#/components/parameters/PageSize"}
+        - {$ref: "#/components/parameters/PageToken"}
+        - {$ref: "#/components/parameters/SearchQuery"}
+      tags: [Organizaciones]
+      summary: Listar incidencias visibles
+      operationId: listIncidents
+      description: Sedes activas autorizadas mediante consulta directa. WORKER solo sus reportes. Búsqueda por nombre de catálogo o descripción.
+      security: [{FirebaseBearer: []}]
+      responses:
+        "200":
+          description: Página autorizada. Cursor vacío significa fin; no se devuelve un total de páginas.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 100
+                    items: {$ref: "#/components/schemas/WorkspaceEntry"}
+                  pagination: {$ref: "#/components/schemas/Pagination"}
+        "400": {$ref: "#/components/responses/InvalidPagination"}
+        default: {$ref: "#/components/responses/WorkspaceError"}
+  /api/v1/organizations/{organizationID}/checklists/{templateID}:
+    parameters:
+      - {$ref: "#/components/parameters/OrganizationID"}
+      - in: path
+        name: templateID
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      tags: [Checklists]
+      summary: Consultar una plantilla publicada completa
+      operationId: getPublishedChecklist
+      description: Autoriza el tenant y devuelve la última versión publicada; no depende de la página del catálogo. Sin parámetros de consulta.
+      security: [{FirebaseBearer: []}]
+      responses:
+        "200":
+          description: Plantilla completa.
           content:
             application/json:
               schema:
@@ -475,6 +649,21 @@ paths:
         default: {$ref: "#/components/responses/WorkspaceError"}
 components:
   parameters:
+    PageSize:
+      in: query
+      name: pageSize
+      description: Tamaño de página. Nuevos endpoints usan 25; endpoints existentes sin query conservan 100.
+      schema: {type: integer, minimum: 1, maximum: 100, default: 25}
+    PageToken:
+      in: query
+      name: pageToken
+      description: Cursor de continuación devuelto por el servidor. Reutilizar con el mismo usuario, tenant, recurso y búsqueda; no concede permisos. Cambiar pageSize está permitido.
+      schema: {type: string, maxLength: 2048, pattern: '^[A-Za-z0-9_-]*$'}
+    SearchQuery:
+      in: query
+      name: query
+      description: Subcadena literal sin distinción de mayúsculas. Máximo 160 caracteres, sin controles; no admite comodines SQL.
+      schema: {type: string, maxLength: 160}
     OrganizationID:
       in: path
       name: organizationID
@@ -498,6 +687,11 @@ components:
       bearerFormat: Firebase ID token
       description: ID token emitido por Firebase Authentication.
   responses:
+    InvalidPagination:
+      description: 400 INVALID_PAGINATION; cursor mal formado, contexto distinto o parámetros inválidos/repetidos/desconocidos. Reiniciar la lista con cursor vacío.
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorResponse"}
     WorkspaceError:
       description: 400 JSON inválido; 401 sesión inválida; 403 sin permiso/correo sin verificar; 404 cuenta no disponible; 409 conflicto; 415 no JSON; 422 fields inválidos; 429 límite; 500/503 fallo sanitizado.
       content:
@@ -522,6 +716,11 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
   schemas:
+    Pagination:
+      type: object
+      required: [nextPageToken]
+      properties:
+        nextPageToken: {type: string, maxLength: 2048, description: Cadena vacía al terminar la lista.}
     ChecklistItem:
       type: object
       additionalProperties: false
@@ -638,6 +837,17 @@ components:
     Workspace:
       type: object
       properties:
+        nextPageTokens:
+          type: object
+          description: Cursores independientes para locations, members, courses, checklist-summaries e incidents.
+          additionalProperties: {type: string, maxLength: 2048}
+        totals:
+          type: object
+          readOnly: true
+          properties:
+            locations: {type: integer, minimum: 0}
+            courses: {type: integer, minimum: 0}
+            checklists: {type: integer, minimum: 0}
         organization: {$ref: "#/components/schemas/WorkspaceOrganization"}
         role: {type: string, enum: [SUPER_ADMIN, ADMIN, CHEF, WORKER]}
         locations:

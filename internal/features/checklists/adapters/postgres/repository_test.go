@@ -122,4 +122,6 @@ func TestChecklistPostgres(t *testing.T) {
 	if err = pool.QueryRow(ctx, `SELECT count(*) FROM audit_events WHERE organization_id=$1`, org).Scan(&count); err != nil || count != 4 {
 		t.Fatal("audit count", err, count)
 	}
+	testCatalogPagination(t, ctx, pool, service, org, other)
+
 }

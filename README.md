@@ -168,3 +168,9 @@ esquema desplegado.
 
 El pool usa por defecto entre 2 y 10 conexiones. Cada conexión se configura en
 UTC con límites para consultas, bloqueos y transacciones abandonadas.
+
+La lectura de organizaciones, sedes, equipo, cursos, incidencias y catálogo de
+controles usa paginación por cursor y búsqueda en servidor. Workspace conserva
+los indicadores globales autorizados y expone cursores independientes. Contrato,
+compatibilidad y pruebas: [ORGANIZATIONS.md](specs/ORGANIZATIONS.md) y
+[CHECKLISTS.md](specs/CHECKLISTS.md). No requiere nuevas migraciones ni variables.

@@ -197,4 +197,6 @@ func TestWorkspacePostgres(t *testing.T) {
 	if err = pool.QueryRow(ctx, `SELECT created_by FROM locations WHERE id=$1`, loc.ID).Scan(&actor); err != nil || actor != "root" {
 		t.Fatal("audit actor missing")
 	}
+	testPagination(t, ctx, pool, service, org.ID, other.ID)
+
 }

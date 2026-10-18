@@ -19,10 +19,17 @@ type Member struct {
 	ID, Name, Email, Role string
 	LocationIDs           []string
 }
-type Entry struct{ ID, Title, Detail, Status string }
+type Entry struct {
+	ID, Title, Detail, Status string
+	// CursorKey conserva la clave de orden; nunca forma parte del DTO público.
+	CursorKey string
+}
+
 type Workspace struct {
 	Organization                   Organization
 	Role                           string
+	NextTokens                     map[string]string
+	Totals                         map[string]int
 	Locations                      []Location
 	Members                        []Member
 	Courses, Checklists, Incidents []Entry

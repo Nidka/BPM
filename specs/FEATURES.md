@@ -42,7 +42,8 @@ Dispositivos, invitaciones, edición y desactivación siguen pendientes.
 
 Estado: primera versión vertical implementada (plantilla publicada, catálogo,
 borrador, respuestas y envío) y documentada en `CHECKLISTS.md`. Asignaciones,
-versiones posteriores, listado paginado y evidencias siguen pendientes.
+versiones posteriores, listado de ejecuciones y evidencias siguen pendientes.
+El catálogo publicado ya tiene paginación y detalle autorizado independiente.
 
 - Tablas: `checklist_templates`, `checklist_template_versions`,
   `checklist_items`, `checklist_assignments`, `checklist_runs`,

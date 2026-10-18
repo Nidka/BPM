@@ -2,6 +2,7 @@ package organizationhttp
 
 import (
 	"errors"
+	"github.com/Nidka/BPM-service/internal/shared/application/pagination"
 	"log/slog"
 	"net/http"
 
@@ -71,6 +72,11 @@ func (h *Handler) Register(r chi.Router, auth func(http.Handler) http.Handler) {
 		r.Use(auth)
 		r.Get("/organizations", h.list)
 		r.Post("/organizations", h.create)
+		r.Get("/organizations/{organizationID}/locations", h.locationsPage)
+		r.Get("/organizations/{organizationID}/members", h.membersPage)
+		r.Get("/organizations/{organizationID}/courses", h.entriesPage("courses"))
+		r.Get("/organizations/{organizationID}/checklist-summaries", h.entriesPage("checklist-summaries"))
+		r.Get("/organizations/{organizationID}/incidents", h.entriesPage("incidents"))
 		r.Get("/organizations/{organizationID}/workspace", h.workspace)
 		r.Post("/organizations/{organizationID}/locations", h.createLocation)
 		r.Post("/organizations/{organizationID}/members", h.addMember)
@@ -83,6 +89,8 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, e error) {
 	id := middleware.RequestIDFromContext(r.Context())
 	var v *domain.ValidationError
 	switch {
+	case errors.Is(e, pagination.ErrInvalid):
+		response.Error(w, 400, id, response.APIError{Code: "INVALID_PAGINATION", Message: "La página no es válida. Actualiza la lista y vuelve a intentar."})
 	case errors.As(e, &v):
 		response.ValidationError(w, id, v.Fields)
 	case errors.Is(e, domain.ErrDenied):
@@ -104,16 +112,24 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	v, e := h.service.List(r.Context(), uid)
+	page, e := httprequest.Pagination(r.URL.RawQuery)
+	if r.URL.RawQuery == "" {
+		page.Size = 100
+	}
+	if e != nil {
+		h.fail(w, r, e)
+		return
+	}
+	v, e := h.service.OrganizationsPage(r.Context(), uid, page)
 	if e != nil {
 		h.fail(w, r, e)
 		return
 	}
 	out := []organizationDTO{}
-	for _, o := range v {
+	for _, o := range v.Items {
 		out = append(out, organization(o))
 	}
-	response.JSON(w, 200, map[string]any{"data": out})
+	response.JSON(w, 200, map[string]any{"data": out, "pagination": map[string]any{"nextPageToken": v.NextToken}})
 }
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	uid, ok := h.actor(w, r)
@@ -136,7 +152,15 @@ func (h *Handler) workspace(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	v, e := h.service.Workspace(r.Context(), uid, chi.URLParam(r, "organizationID"))
+	p, e := httprequest.Pagination(r.URL.RawQuery, "pageSize")
+	if e != nil {
+		h.fail(w, r, pagination.ErrInvalid)
+		return
+	}
+	if r.URL.RawQuery == "" {
+		p.Size = 100
+	}
+	v, e := h.service.WorkspacePage(r.Context(), uid, chi.URLParam(r, "organizationID"), p.Size)
 	if e != nil {
 		h.fail(w, r, e)
 		return
@@ -149,7 +173,7 @@ func (h *Handler) workspace(w http.ResponseWriter, r *http.Request) {
 	for _, m := range v.Members {
 		ms = append(ms, memberDTO{m.ID, m.Name, m.Email, m.Role, m.LocationIDs})
 	}
-	response.JSON(w, 200, map[string]any{"data": map[string]any{"organization": organization(v.Organization), "role": v.Role, "locations": ls, "members": ms, "courses": entries(v.Courses), "checklists": entries(v.Checklists), "incidents": entries(v.Incidents)}})
+	response.JSON(w, 200, map[string]any{"data": map[string]any{"organization": organization(v.Organization), "role": v.Role, "nextPageTokens": v.NextTokens, "totals": v.Totals, "locations": ls, "members": ms, "courses": entries(v.Courses), "checklists": entries(v.Checklists), "incidents": entries(v.Incidents)}})
 }
 func (h *Handler) createLocation(w http.ResponseWriter, r *http.Request) {
 	uid, ok := h.actor(w, r)

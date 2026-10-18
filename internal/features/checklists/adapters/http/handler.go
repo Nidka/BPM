@@ -2,6 +2,7 @@ package checklisthttp
 
 import (
 	"errors"
+	"github.com/Nidka/BPM-service/internal/shared/application/pagination"
 	"log/slog"
 	"net/http"
 	"time"
@@ -119,6 +120,7 @@ func (h *Handler) Register(r chi.Router, auth func(http.Handler) http.Handler) {
 	r.Group(func(r chi.Router) {
 		r.Use(auth)
 		r.Get("/organizations/{organizationID}/checklists", h.catalog)
+		r.Get("/organizations/{organizationID}/checklists/{templateID}", h.getTemplate)
 		r.Post("/organizations/{organizationID}/checklists", h.createTemplate)
 		r.Post("/organizations/{organizationID}/checklist-runs", h.createRun)
 		r.Get("/organizations/{organizationID}/checklist-runs/{runID}", h.getRun)
@@ -135,6 +137,8 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	id := middleware.RequestIDFromContext(r.Context())
 	var validation *domain.ValidationError
 	switch {
+	case errors.Is(err, pagination.ErrInvalid):
+		response.Error(w, 400, id, response.APIError{Code: "INVALID_PAGINATION", Message: "La página no es válida. Actualiza la lista y vuelve a intentar."})
 	case errors.As(err, &validation):
 		response.ValidationError(w, id, validation.Fields)
 	case errors.Is(err, domain.ErrDenied):
@@ -160,16 +164,24 @@ func (h *Handler) catalog(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	values, err := h.service.Catalog(r.Context(), uid, chi.URLParam(r, "organizationID"))
+	p, err := httprequest.Pagination(r.URL.RawQuery)
+	if r.URL.RawQuery == "" {
+		p.Size = 100
+	}
 	if err != nil {
 		h.fail(w, r, err)
 		return
 	}
-	out := make([]templateDTO, 0, len(values))
-	for _, v := range values {
+	values, err := h.service.CatalogPage(r.Context(), uid, chi.URLParam(r, "organizationID"), p)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	out := make([]templateDTO, 0, len(values.Items))
+	for _, v := range values.Items {
 		out = append(out, template(v))
 	}
-	response.JSON(w, 200, map[string]any{"data": out})
+	response.JSON(w, 200, map[string]any{"data": out, "pagination": map[string]string{"nextPageToken": values.NextToken}})
 }
 
 func (h *Handler) createTemplate(w http.ResponseWriter, r *http.Request) {
@@ -268,4 +280,21 @@ func (h *Handler) submit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSON(w, 200, map[string]any{"data": run(v)})
+}
+
+func (h *Handler) getTemplate(w http.ResponseWriter, r *http.Request) {
+	uid, ok := h.actor(w, r)
+	if !ok {
+		return
+	}
+	if r.URL.RawQuery != "" {
+		h.fail(w, r, pagination.ErrInvalid)
+		return
+	}
+	v, e := h.service.Template(r.Context(), uid, chi.URLParam(r, "organizationID"), chi.URLParam(r, "templateID"))
+	if e != nil {
+		h.fail(w, r, e)
+		return
+	}
+	response.JSON(w, 200, map[string]any{"data": template(v)})
 }

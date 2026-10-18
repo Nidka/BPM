@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Nidka/BPM-service/internal/shared/application/pagination"
 	"strconv"
 
 	"github.com/Nidka/BPM-service/internal/features/checklists/application"
@@ -99,13 +100,26 @@ func parseNullable(value *string) (*float64, error) {
 }
 
 func (s *store) Catalog(ctx context.Context, org string) ([]domain.Template, error) {
-	rows, err := s.tx.Query(ctx, `SELECT t.id::text,t.name,COALESCE(t.description,''),t.area,v.id::text,v.version_number,
+	items, e := s.CatalogPage(ctx, org, pagination.Window{Size: 100}, "")
+	if len(items) > 100 {
+		items = items[:100]
+	}
+	return items, e
+}
+func (s *store) CatalogPage(ctx context.Context, org string, w pagination.Window, id string) ([]domain.Template, error) {
+	rows, err := s.tx.Query(ctx, `WITH page AS (
+ SELECT t.id,t.organization_id,t.name,t.description,t.area,v.id AS version_id,v.version_number FROM checklist_templates t
+ JOIN LATERAL (SELECT id,version_number FROM checklist_template_versions WHERE organization_id=t.organization_id AND template_id=t.id AND status='PUBLISHED' ORDER BY version_number DESC LIMIT 1) v ON true
+ WHERE t.organization_id=$1 AND t.status='ACTIVE' AND ($6='' OR t.id::text=$6)
+ AND ($2='' OR strpos(lower(t.name||' '||t.area||' '||COALESCE(t.description,'')),lower($2))>0)
+ AND ($4='' OR (t.name,t.id::text)>($3,$4)) ORDER BY t.name,t.id::text LIMIT $5
+ ) SELECT t.id::text,t.name,COALESCE(t.description,''),t.area,v.id::text,v.version_number,
 		i.id::text,i.section_name,i.label,i.response_type,i.display_order,i.required,
 		i.minimum_value::text,i.maximum_value::text,COALESCE(i.unit,''),i.evidence_required_on_failure
-		FROM checklist_templates t
-		JOIN LATERAL (SELECT id,version_number FROM checklist_template_versions WHERE organization_id=t.organization_id AND template_id=t.id AND status='PUBLISHED' ORDER BY version_number DESC LIMIT 1) v ON true
-		JOIN checklist_items i ON i.organization_id=t.organization_id AND i.template_version_id=v.id
-		WHERE t.organization_id=$1 AND t.status='ACTIVE' ORDER BY t.name,t.id,i.display_order LIMIT 10000`, org)
+ FROM page t
+ JOIN checklist_template_versions v ON v.organization_id=t.organization_id AND v.id=t.version_id
+ JOIN checklist_items i ON i.organization_id=t.organization_id AND i.template_version_id=v.id
+ ORDER BY t.name,t.id::text,i.display_order,i.id`, org, w.Query, w.After.Key, w.After.ID, w.Size+1, id)
 	if err != nil {
 		return nil, err
 	}
@@ -128,9 +142,6 @@ func (s *store) Catalog(ctx context.Context, org string) ([]domain.Template, err
 		}
 		at, ok := positions[t.ID]
 		if !ok {
-			if len(out) == 100 {
-				break
-			}
 			t.Items = []domain.Item{}
 			at = len(out)
 			positions[t.ID] = at

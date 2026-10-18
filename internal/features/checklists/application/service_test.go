@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"github.com/Nidka/BPM-service/internal/shared/application/pagination"
 	"testing"
 	"time"
 
@@ -141,4 +142,8 @@ func TestCreateRunClientTimestampNormalized(t *testing.T) {
 	if err != nil || run.ClientCreatedAt.Nanosecond()%1000 != 0 {
 		t.Fatal("timestamp not normalized", err)
 	}
+}
+
+func (f *fakeStore) CatalogPage(context.Context, string, pagination.Window, string) ([]domain.Template, error) {
+	return nil, nil
 }

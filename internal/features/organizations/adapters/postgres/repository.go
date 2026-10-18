@@ -69,71 +69,10 @@ func (s *store) Role(ctx context.Context, a domain.Actor, org string) (string, e
 	}
 	return role, e
 }
-func (s *store) Workspace(ctx context.Context, a domain.Actor, org, role string) (w domain.Workspace, e error) {
-	w.Role = role
-	w.Locations = []domain.Location{}
-	w.Members = []domain.Member{}
-	w.Courses = []domain.Entry{}
-	w.Checklists = []domain.Entry{}
-	w.Incidents = []domain.Entry{}
-	e = s.tx.QueryRow(ctx, `SELECT `+orgColumns+` FROM organizations o WHERE o.id=$1`, org).Scan(&w.Organization.ID, &w.Organization.LegalName, &w.Organization.TradeName, &w.Organization.TaxID, &w.Organization.BusinessType, &w.Organization.ContactName, &w.Organization.ContactPhone, &w.Organization.ContactEmail)
-	if e != nil {
-		return
-	}
-	rows, e := s.tx.Query(ctx, `SELECT l.id::text,l.name,l.address,COALESCE(l.district,''),COALESCE(l.contact_phone,''),l.timezone FROM locations l WHERE l.organization_id=$1 AND l.status='ACTIVE' AND ($3 OR EXISTS(SELECT 1 FROM membership_locations ml WHERE ml.organization_id=$1 AND ml.user_id=$2 AND ml.location_id=l.id)) ORDER BY l.name,l.id LIMIT 100`, org, a.ID, domain.CanManage(role))
-	if e != nil {
-		return
-	}
-	for rows.Next() {
-		var l domain.Location
-		if e = rows.Scan(&l.ID, &l.Name, &l.Address, &l.District, &l.ContactPhone, &l.Timezone); e != nil {
-			break
-		}
-		w.Locations = append(w.Locations, l)
-	}
-	if e == nil {
-		e = rows.Err()
-	}
-	rows.Close()
-	if e != nil {
-		return
-	}
-	if domain.CanManage(role) {
-		rows, e = s.tx.Query(ctx, `SELECT u.id,u.display_name,u.email,m.role,COALESCE((SELECT array_agg(ml.location_id::text ORDER BY ml.location_id) FROM membership_locations ml WHERE ml.organization_id=$1 AND ml.user_id=u.id),'{}'::text[]) FROM organization_memberships m JOIN application_users u ON u.id=m.user_id AND u.status='ACTIVE' WHERE m.organization_id=$1 AND m.status='ACTIVE' ORDER BY u.display_name,u.id LIMIT 100`, org)
-		if e != nil {
-			return
-		}
-		for rows.Next() {
-			var m domain.Member
-			if e = rows.Scan(&m.ID, &m.Name, &m.Email, &m.Role, &m.LocationIDs); e != nil {
-				break
-			}
-			w.Members = append(w.Members, m)
-		}
-		if e == nil {
-			e = rows.Err()
-		}
-		rows.Close()
-		if e != nil {
-			return
-		}
-	}
-	w.Courses, e = s.entries(ctx, `SELECT c.id::text,c.title,LEFT(COALESCE(c.description,''),500),COALESCE(p.status,'NOT_STARTED') FROM training_courses c LEFT JOIN training_progress p ON p.organization_id=c.organization_id AND p.course_id=c.id AND p.user_id=$2 WHERE c.organization_id=$1 AND c.status='PUBLISHED' ORDER BY c.title,c.id LIMIT 100`, org, a.ID)
-	if e != nil {
-		return
-	}
-	w.Checklists, e = s.entries(ctx, `SELECT id::text,name,LEFT(COALESCE(description,''),500),status FROM checklist_templates WHERE organization_id=$1 AND status='ACTIVE' ORDER BY name,id LIMIT 100`, org)
-	if e != nil {
-		return
-	}
-	// Operational records are scoped to assigned locations; workers see only their reports.
-	ids := []string{}
-	for _, l := range w.Locations {
-		ids = append(ids, l.ID)
-	}
-	w.Incidents, e = s.entries(ctx, `SELECT i.id::text,c.name,LEFT(COALESCE(i.description,''),500),i.status FROM incidents i JOIN incident_catalog c ON c.organization_id=i.organization_id AND c.id=i.catalog_id WHERE i.organization_id=$1 AND i.location_id::text=ANY($2) AND ($3<>'WORKER' OR i.reported_by=$4) ORDER BY i.created_at DESC,i.id LIMIT 100`, org, ids, role, a.ID)
-	return
+func (s *store) Workspace(ctx context.Context, a domain.Actor, org, role string) (domain.Workspace, error) {
+	return s.WorkspacePage(ctx, a, org, role, 100)
 }
+
 func (s *store) entries(ctx context.Context, q string, args ...any) ([]domain.Entry, error) {
 	rows, e := s.tx.Query(ctx, q, args...)
 	if e != nil {
@@ -143,7 +82,7 @@ func (s *store) entries(ctx context.Context, q string, args ...any) ([]domain.En
 	out := []domain.Entry{}
 	for rows.Next() {
 		var v domain.Entry
-		if e = rows.Scan(&v.ID, &v.Title, &v.Detail, &v.Status); e != nil {
+		if e = rows.Scan(&v.ID, &v.Title, &v.Detail, &v.Status, &v.CursorKey); e != nil {
 			return nil, e
 		}
 		out = append(out, v)

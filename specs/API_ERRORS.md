@@ -55,3 +55,7 @@ contexto BPM. El cliente debe pedir autenticación nueva; renovar el token no
 extiende esa sesión. `503 AUTHENTICATION_UNAVAILABLE` también se utiliza cuando
 no se puede consultar el estado de sesión; nunca autoriza por defecto.
 
+
+`400 INVALID_PAGINATION` indica tamaño, query o cursor inválido, parámetros
+repetidos/desconocidos o contexto distinto. El cliente vuelve a la primera página
+con la misma búsqueda. El cursor no autentica ni reemplaza permisos.

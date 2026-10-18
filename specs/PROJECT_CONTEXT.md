@@ -70,7 +70,8 @@ paralelas para resolver la contradicción silenciosamente.
 
 ## Próximo recorrido
 
-1. Completar asignaciones, nuevas versiones y paginación de checklists.
+1. Completar asignaciones, nuevas versiones y listado de ejecuciones; el catálogo
+   publicado ya dispone de páginas y detalle autorizado.
 2. Implementar evidencias privadas R2 con firmas temporales.
 3. Ampliar operación diaria e incidencias como módulos verticales.
 
