@@ -10,7 +10,9 @@ healthcheck, variables y permisos) deben confirmarse allí; no se certifican
 
 Para la entrega de seguridad consultar [specs/SESSIONS.md](specs/SESSIONS.md):
 requiere aplicar V2 antes del backend nuevo y publicar primero el frontend
-compatible. Esta migración no se ha ejecutado en Railway.
+compatible. V2 ya se aplicó y verificó en Railway el 18/10/2026 a las 02:20,
+hora de Lima. No volver a ejecutarla. La publicación de los binarios nuevos
+continúa pendiente; la migración no activa por sí sola la política de sesiones.
 
 ## Arquitectura del despliegue
 
