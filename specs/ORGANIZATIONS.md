@@ -137,3 +137,19 @@ Referencias: [orden y límites PostgreSQL](https://www.postgresql.org/docs/18/qu
 y [AIP-158](https://google.aip.dev/158) para cursores, autorización por solicitud y
 compatibilidad. El contrato BPM define su propia validación estricta 1–100, en
 lugar de adoptar la coerción de tamaños recomendada por AIP.
+
+## Comprobación previa al alta
+
+POST `/api/v1/organizations/{organizationID}/members/check` recibe únicamente
+`email` en JSON. Requiere sesión verificada y ADMIN del tenant o SUPER_ADMIN.
+Devuelve `READY`, `ALREADY_MEMBER` o `UNAVAILABLE`, sin nombres, UID ni datos de
+otras organizaciones. No hay búsqueda pública ni alta automática: las cuentas
+inexistentes e inactivas comparten respuesta. No modifica membresías ni auditoría.
+Un perfil BPM se registra a través de identidad después de verificar el correo;
+no se consulta el directorio Firebase desde el navegador.
+
+El frontend comprueba la cuenta antes de mostrar rol, sedes y confirmación.
+Cambiar correo, usuario o empresa invalida la comprobación. Restaurar un borrador
+exige comprobar de nuevo. La respuesta no es una autorización reutilizable:
+POST members vuelve a comprobar permisos, usuario activo, pertenencia y sedes.
+Una carrera con otra alta conserva el conflicto existente. Sin migraciones nuevas.

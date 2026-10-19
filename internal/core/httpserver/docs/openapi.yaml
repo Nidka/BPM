@@ -315,6 +315,40 @@ paths:
                 properties:
                   data: {$ref: "#/components/schemas/WorkspaceLocation"}
         default: {$ref: "#/components/responses/WorkspaceError"}
+  /api/v1/organizations/{organizationID}/members/check:
+    parameters:
+      - {$ref: "#/components/parameters/OrganizationID"}
+    post:
+      tags: [Organizaciones]
+      summary: Comprobar si una cuenta BPM puede agregarse al equipo
+      operationId: checkMemberEligibility
+      description: Solo ADMIN de la organización o SUPER_ADMIN, con sesión y correo verificados. Consulta exacta sin mutaciones. No lista usuarios ni revela perfiles o membresías de otras empresas. El correo viaja en JSON, sin parámetros de URL. El alta vuelve a autorizar y validar al confirmar; READY no reserva ni concede acceso.
+      security: [{FirebaseBearer: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email]
+              properties:
+                email: {type: string, format: email, maxLength: 320}
+      responses:
+        "200":
+          description: Estado de cuenta disponible, ya incorporada en esta organización o no disponible. No disponible agrupa cuentas inexistentes e inactivas; un perfil BPM se crea tras verificar el correo en identidad.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [status]
+                    properties:
+                      status: {type: string, enum: [READY, ALREADY_MEMBER, UNAVAILABLE]}
+        default: {$ref: "#/components/responses/WorkspaceError"}
   /api/v1/organizations/{organizationID}/members:
     parameters:
       - {$ref: "#/components/parameters/OrganizationID"}

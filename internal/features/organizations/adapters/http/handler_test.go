@@ -46,6 +46,10 @@ func TestProtectedOrganizationRoutes(t *testing.T) {
 		{"empty form", "POST", "/organizations", `{}`, "token", true, 422, "VALIDATION_ERROR"},
 		{"invalid location", "POST", "/organizations/org/locations", `{}`, "token", true, 422, "VALIDATION_ERROR"},
 		{"invalid member", "POST", "/organizations/org/members", `{"email":"bad","role":"SUPER_ADMIN"}`, "token", true, 422, "VALIDATION_ERROR"},
+		{"member check requires authentication", "POST", "/organizations/org/members/check", `{"email":"test@example.com"}`, "", true, 401, "UNAUTHENTICATED"},
+		{"member check requires verified email", "POST", "/organizations/org/members/check", `{"email":"test@example.com"}`, "token", false, 403, "EMAIL_NOT_VERIFIED"},
+		{"member check rejects invalid email", "POST", "/organizations/org/members/check", `{"email":"bad"}`, "token", true, 422, "VALIDATION_ERROR"},
+		{"member check rejects role", "POST", "/organizations/org/members/check", `{"email":"test@example.com","role":"SUPER_ADMIN"}`, "token", true, 400, "INVALID_REQUEST"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))

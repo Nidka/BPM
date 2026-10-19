@@ -113,11 +113,41 @@ func TestWorkspacePostgres(t *testing.T) {
 	if err = service.AddMember(ctx, "root", org.ID, "admin@example.invalid", "ADMIN", nil); err != nil {
 		t.Fatal(err)
 	}
+	for _, check := range []struct {
+		uid, organization, email string
+		want                     domain.MemberEligibility
+		denied                   bool
+	}{
+		{"admin", org.ID, "outsider@example.invalid", domain.MemberReady, false},
+		{"admin", org.ID, " ADMIN@example.invalid ", domain.MemberAlreadyAssigned, false},
+		{"admin", org.ID, "missing@example.invalid", domain.MemberUnavailable, false},
+		{"root", org.ID, "outsider@example.invalid", domain.MemberReady, false},
+		{"outsider", org.ID, "admin@example.invalid", "", true},
+		{"admin", other.ID, "outsider@example.invalid", "", true},
+	} {
+		status, e := service.CheckMember(ctx, check.uid, check.organization, check.email)
+		if check.denied {
+			if !errors.Is(e, domain.ErrDenied) {
+				t.Fatal("lookup leaked across permissions", e)
+			}
+			continue
+		}
+		if e != nil || status != check.want {
+			t.Fatal("wrong eligibility", status, e)
+		}
+	}
+	var memberships int
+	if e := pool.QueryRow(ctx, `SELECT count(*) FROM organization_memberships`).Scan(&memberships); e != nil || memberships != 1 {
+		t.Fatal("checking a member changed memberships", memberships, e)
+	}
 	if err = service.AddMember(ctx, "admin", org.ID, "worker@example.invalid", "WORKER", []string{otherLoc.ID}); err == nil {
 		t.Fatal("accepted foreign location")
 	}
 	if err = service.AddMember(ctx, "admin", org.ID, "worker@example.invalid", "WORKER", []string{loc.ID, loc.ID}); err != nil {
 		t.Fatal(err)
+	}
+	if _, e := service.CheckMember(ctx, "worker", org.ID, "outsider@example.invalid"); !errors.Is(e, domain.ErrDenied) {
+		t.Fatal("worker enumerated accounts", e)
 	}
 	if err = service.AddMember(ctx, "admin", org.ID, "worker@example.invalid", "ADMIN", nil); !errors.Is(err, domain.ErrConflict) {
 		t.Fatal("duplicate changed role", err)

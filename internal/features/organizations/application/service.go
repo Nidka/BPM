@@ -27,6 +27,7 @@ type Store interface {
 	CreateOrganization(context.Context, domain.Actor, domain.Organization) error
 	CreateLocation(context.Context, domain.Actor, string, domain.Location) error
 	AddMember(context.Context, domain.Actor, string, string, string, []string) error
+	MemberEligibility(context.Context, string, string) (domain.MemberEligibility, error)
 }
 type UnitOfWork interface {
 	Within(context.Context, func(Store) error) error
