@@ -60,7 +60,10 @@ necesarios además del límite de inactividad.
 
 El frontend observa toques, teclado y desplazamiento. Los diálogos tienen su
 propio observador y los campos notifican cambios del teclado virtual. El aviso
-aparece durante el último minuto y el acceso local se retira al vencer el plazo.
+aparece durante los últimos cinco minutos y el acceso local se retira al vencer el plazo.
+Al recuperar el primer plano se recalcula el deadline antes de mostrar consultas;
+no se ofrece ampliar un contexto vencido. Las pestañas ocultas pueden suspender
+sus temporizadores: el cliente no garantiza avisos visibles fuera de la app.
 El backend sigue siendo la autoridad incluso si se manipula el reloj del cliente.
 
 La restauración de un refresh token móvil siempre confirma `/me`. Un 401 elimina
@@ -69,10 +72,12 @@ antes de esperar la revocación remota. Si no hay red, informa que el cierre rem
 no pudo confirmarse: la credencial ya emitida permanece sujeta a los límites del
 servidor. El cierre local por sí solo no demuestra revocación remota.
 
-El aviso no implementa persistencia de borradores. Los formularios actuales son
-temporales y se limpian al salir de sesión. Los borradores operativos y la cola
-offline deben implementarse con su contrato de persistencia, separados por usuario
-y empresa; no deben enviarse mientras el servidor exija autenticación nueva.
+El aviso no guarda datos por sí mismo. El frontend conserva copias locales de
+formularios y controles mediante puertos separados por usuario, empresa y origen.
+La edición confirmada como conservada puede recuperarse tras autenticar y volver
+a autorizar; nunca se envía automáticamente al renovar acceso. La cola múltiple
+y la sincronización offline completa siguen pendientes. La UI informa esta
+recuperación cuando una sesión termina.
 
 ## Configuración
 
