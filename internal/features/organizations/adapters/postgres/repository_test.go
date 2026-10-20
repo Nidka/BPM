@@ -137,6 +137,58 @@ func TestWorkspacePostgres(t *testing.T) {
 		}
 	}
 	var memberships int
+	for i := 0; i < 8; i++ {
+		exec(`INSERT INTO application_users(id,email,display_name) VALUES($1,$2,'Search test')`, fmt.Sprintf("suggest-%d", i), fmt.Sprintf("suggest%d@example.invalid", i))
+	}
+	exec(`INSERT INTO application_users(id,email,display_name,status) VALUES('suggest-inactive','suggest-inactive@example.invalid','Inactive','INACTIVE')`)
+	for _, check := range []struct {
+		uid, organization, query string
+		want                     int
+		status                   domain.MemberEligibility
+		denied                   bool
+	}{
+		{"admin", org.ID, "sug", 5, "", false},
+		{"root", org.ID, "sug", 5, "", false},
+		{"admin", org.ID, " SUGGEST0@example.invalid ", 1, domain.MemberReady, false},
+		{"admin", org.ID, "admin@example.invalid", 0, domain.MemberAlreadyAssigned, false},
+		{"admin", org.ID, "suggest-inactive@example.invalid", 0, domain.MemberUnavailable, false},
+		{"admin", org.ID, "notfound@example.invalid", 0, domain.MemberUnavailable, false},
+		{"admin", org.ID, "sug%", 0, "", false},
+		{"admin", org.ID, "sug_", 0, "", false},
+		{"admin", other.ID, "sug", 0, "", true},
+		{"outsider", org.ID, "sug", 0, "", true},
+	} {
+		result, e := service.SearchMemberAccounts(ctx, check.uid, check.organization, check.query)
+		if check.denied {
+			if !errors.Is(e, domain.ErrDenied) {
+				t.Fatal("unauthorized account suggestions", e)
+			}
+			continue
+		}
+		if e != nil || len(result.Suggestions) != check.want {
+			t.Fatal("invalid account suggestions", result, e)
+		}
+		if check.status == "" {
+			if result.ExactStatus != nil {
+				t.Fatal("partial email treated as a complete account", result)
+			}
+		} else if result.ExactStatus == nil || *result.ExactStatus != check.status {
+			t.Fatal("invalid exact account status", result)
+		}
+		if strings.TrimSpace(check.query) == "sug" && (result.Suggestions[0] != "suggest0@example.invalid" || result.Suggestions[4] != "suggest4@example.invalid") {
+			t.Fatal("unstable suggestion order", result)
+		}
+	}
+	lookupRouter := chi.NewRouter()
+	organizationhttp.New(service, slog.New(slog.NewTextHandler(io.Discard, nil))).Register(lookupRouter, middleware.Authenticate(tenantTestVerifier{}))
+	lookupRequest := httptest.NewRequest("POST", "/organizations/"+org.ID+"/members/search", strings.NewReader(`{"query":"sug"}`))
+	lookupRequest.Header.Set("Authorization", "Bearer admin")
+	lookupRequest.Header.Set("Content-Type", "application/json")
+	lookupResponse := httptest.NewRecorder()
+	lookupRouter.ServeHTTP(lookupResponse, lookupRequest)
+	if lookupResponse.Code != 200 || !strings.Contains(lookupResponse.Body.String(), `"suggestions"`) || !strings.Contains(lookupResponse.Body.String(), `"exactStatus":null`) || strings.Contains(lookupResponse.Body.String(), `"uid"`) || strings.Contains(lookupResponse.Body.String(), `"displayName"`) {
+		t.Fatal("invalid public search response", lookupResponse.Code, lookupResponse.Body.String())
+	}
 	if e := pool.QueryRow(ctx, `SELECT count(*) FROM organization_memberships`).Scan(&memberships); e != nil || memberships != 1 {
 		t.Fatal("checking a member changed memberships", memberships, e)
 	}
@@ -148,6 +200,9 @@ func TestWorkspacePostgres(t *testing.T) {
 	}
 	if _, e := service.CheckMember(ctx, "worker", org.ID, "outsider@example.invalid"); !errors.Is(e, domain.ErrDenied) {
 		t.Fatal("worker enumerated accounts", e)
+	}
+	if _, e := service.SearchMemberAccounts(ctx, "worker", org.ID, "sug"); !errors.Is(e, domain.ErrDenied) {
+		t.Fatal("worker searched platform accounts", e)
 	}
 	if err = service.AddMember(ctx, "admin", org.ID, "worker@example.invalid", "ADMIN", nil); !errors.Is(err, domain.ErrConflict) {
 		t.Fatal("duplicate changed role", err)

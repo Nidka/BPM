@@ -153,3 +153,32 @@ Cambiar correo, usuario o empresa invalida la comprobación. Restaurar un borrad
 exige comprobar de nuevo. La respuesta no es una autorización reutilizable:
 POST members vuelve a comprobar permisos, usuario activo, pertenencia y sedes.
 Una carrera con otra alta conserva el conflicto existente. Sin migraciones nuevas.
+
+## Sugerencias dirigidas para incorporar personas
+
+POST `organizations/{id}/members/search` recibe solo `query` en JSON y autoriza
+ADMIN de esa organización o SUPER_ADMIN antes de consultar cuentas. Es una
+capacidad explícita de incorporación: busca prefijos de correos de perfiles BPM
+activos de la plataforma, no solo la página actual del equipo. No revela nombres,
+UID, estado privado, roles ni membresías de otras empresas. CHEF, WORKER y
+administradores de otro tenant reciben denegación, incluso con una búsqueda exacta.
+
+Mínimo 3 caracteres, máximo 320 bytes, sin espacios/controles. Prefijo literal y
+sin distinción de mayúsculas; `%` y `_` no son comodines. Se devuelven como máximo
+5 correos ordenados, sin cursor ni catálogo completo; se afina escribiendo más.
+Se excluyen todas las membresías existentes del tenant, también inactivas, porque
+el alta no las reactiva. La consulta hereda el límite HTTP de solicitudes y la
+política de sesión; no crea invitaciones, cuentas, auditorías ni membresías.
+
+`data.suggestions` es una lista de correos. `exactStatus` es null con un prefijo;
+con un correo completo devuelve READY, ALREADY_MEMBER o UNAVAILABLE. Cero
+sugerencias parciales no significa correo sin registrar. Inexistencia/inactividad
+comparten UNAVAILABLE. El cliente no persiste sugerencias ni autorizaciones y
+vuelve a consultar al recuperar un borrador. Una respuesta tardía no puede
+restaurar otra consulta, cuenta o empresa. POST members mantiene su revalidación.
+
+El endpoint exacto `/members/check` permanece para clientes instalados anteriores;
+el nuevo formulario no lo utiliza ni muestra un paso manual para comprobar.
+No requiere migraciones ni variables nuevas. Pruebas con PostgreSQL aislado cubren
+límites, orden, normalización, exclusión, caracteres literales, cuentas inactivas,
+sin escrituras y denegaciones de rol/tenant. Publicar backend antes del cliente.

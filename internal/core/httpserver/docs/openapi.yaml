@@ -349,6 +349,46 @@ paths:
                     properties:
                       status: {type: string, enum: [READY, ALREADY_MEMBER, UNAVAILABLE]}
         default: {$ref: "#/components/responses/WorkspaceError"}
+  /api/v1/organizations/{organizationID}/members/search:
+    parameters:
+      - {$ref: "#/components/parameters/OrganizationID"}
+    post:
+      tags: [Organizaciones]
+      summary: Sugerir cuentas incorporables mientras se escribe el correo
+      operationId: searchMemberAccounts
+      description: Solo ADMIN del tenant o SUPER_ADMIN con sesión verificada. Búsqueda dirigida por prefijo literal de correo, mínimo 3 caracteres. Devuelve hasta 5 correos de perfiles BPM activos, excluyendo membresías ya existentes de esta organización. No devuelve nombres, UID, roles ni membresías de otras organizaciones. Para un correo completo añade el estado exacto; una búsqueda parcial sin resultados no afirma inexistencia. Sin escrituras. El alta revalida permisos y pertenencia al confirmar. El cuerpo no se registra ni viaja en la URL; aplica el límite HTTP de solicitudes existente.
+      security: [{FirebaseBearer: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [query]
+              properties:
+                query: {type: string, minLength: 3, maxLength: 320}
+      responses:
+        "200":
+          description: Hasta cinco sugerencias, ordenadas por correo, y estado exacto opcional. Las cuentas inexistentes e inactivas comparten UNAVAILABLE.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required: [suggestions, exactStatus]
+                    properties:
+                      suggestions:
+                        type: array
+                        maxItems: 5
+                        uniqueItems: true
+                        items: {type: string, format: email, maxLength: 320}
+                      exactStatus: {type: string, nullable: true, enum: [READY, ALREADY_MEMBER, UNAVAILABLE, null]}
+        default: {$ref: "#/components/responses/WorkspaceError"}
   /api/v1/organizations/{organizationID}/members:
     parameters:
       - {$ref: "#/components/parameters/OrganizationID"}

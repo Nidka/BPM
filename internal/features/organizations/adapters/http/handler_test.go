@@ -50,6 +50,11 @@ func TestProtectedOrganizationRoutes(t *testing.T) {
 		{"member check requires verified email", "POST", "/organizations/org/members/check", `{"email":"test@example.com"}`, "token", false, 403, "EMAIL_NOT_VERIFIED"},
 		{"member check rejects invalid email", "POST", "/organizations/org/members/check", `{"email":"bad"}`, "token", true, 422, "VALIDATION_ERROR"},
 		{"member check rejects role", "POST", "/organizations/org/members/check", `{"email":"test@example.com","role":"SUPER_ADMIN"}`, "token", true, 400, "INVALID_REQUEST"},
+		{"member search requires authentication", "POST", "/organizations/org/members/search", `{"query":"chef"}`, "", true, 401, "UNAUTHENTICATED"},
+		{"member search requires verified email", "POST", "/organizations/org/members/search", `{"query":"chef"}`, "token", false, 403, "EMAIL_NOT_VERIFIED"},
+		{"member search rejects short prefix", "POST", "/organizations/org/members/search", `{"query":"ch"}`, "token", true, 422, "VALIDATION_ERROR"},
+		{"member search rejects role", "POST", "/organizations/org/members/search", `{"query":"chef","role":"ADMIN"}`, "token", true, 400, "INVALID_REQUEST"},
+		{"member search rejects URL query", "POST", "/organizations/org/members/search?query=chef", `{"query":"chef"}`, "token", true, 400, "INVALID_REQUEST"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))

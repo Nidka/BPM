@@ -81,6 +81,7 @@ func (h *Handler) Register(r chi.Router, auth func(http.Handler) http.Handler) {
 		r.Post("/organizations/{organizationID}/locations", h.createLocation)
 		r.Post("/organizations/{organizationID}/members", h.addMember)
 		r.Post("/organizations/{organizationID}/members/check", h.checkMember)
+		r.Post("/organizations/{organizationID}/members/search", h.searchMemberAccounts)
 	})
 }
 func (h *Handler) actor(w http.ResponseWriter, r *http.Request) (string, bool) {

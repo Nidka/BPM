@@ -8,3 +8,9 @@ const (
 	MemberAlreadyAssigned MemberEligibility = "ALREADY_MEMBER"
 	MemberUnavailable     MemberEligibility = "UNAVAILABLE"
 )
+
+// MemberAccountMatches contiene solo correos incorporables, sin perfiles ni datos de otros equipos.
+type MemberAccountMatches struct {
+	Suggestions []string
+	ExactStatus *MemberEligibility
+}

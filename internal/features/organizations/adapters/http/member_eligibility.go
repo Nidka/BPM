@@ -29,3 +29,26 @@ func (h *Handler) checkMember(w http.ResponseWriter, r *http.Request) {
 	}
 	response.JSON(w, 200, map[string]any{"data": map[string]any{"status": status}})
 }
+
+func (h *Handler) searchMemberAccounts(w http.ResponseWriter, r *http.Request) {
+	uid, ok := h.actor(w, r)
+	if !ok {
+		return
+	}
+	var input struct {
+		Query string `json:"query"`
+	}
+	if !decode(w, r, &input) {
+		return
+	}
+	if r.URL.RawQuery != "" {
+		response.Error(w, 400, middleware.RequestIDFromContext(r.Context()), response.APIError{Code: "INVALID_REQUEST", Message: "Envía la búsqueda únicamente en el formulario."})
+		return
+	}
+	result, err := h.service.SearchMemberAccounts(r.Context(), uid, chi.URLParam(r, "organizationID"), input.Query)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	response.JSON(w, 200, map[string]any{"data": map[string]any{"suggestions": result.Suggestions, "exactStatus": result.ExactStatus}})
+}
