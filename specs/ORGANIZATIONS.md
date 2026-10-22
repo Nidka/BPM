@@ -182,3 +182,15 @@ el nuevo formulario no lo utiliza ni muestra un paso manual para comprobar.
 No requiere migraciones ni variables nuevas. Pruebas con PostgreSQL aislado cubren
 límites, orden, normalización, exclusión, caracteres literales, cuentas inactivas,
 sin escrituras y denegaciones de rol/tenant. Publicar backend antes del cliente.
+
+## Validación de los formularios
+
+Identidad y organizaciones reutilizan `shared/domain/input`. Persona de contacto
+es un nombre personal opcional de hasta 160 caracteres y no admite números.
+Razón social, nombre comercial, sede y dirección sí admiten números; sus límites
+se conservan (200/200/160/300). Identificación fiscal admite texto hasta 20;
+distrito hasta 120. Teléfono opcional: 7–15 dígitos y hasta 30 caracteres de
+formato, con + inicial, espacios, guiones y paréntesis. El correo opcional debe
+estar completo, con dominio con punto y hasta 320 bytes. Controles y saltos de
+línea se rechazan. Error 422 con la clave del campo; no se consulta DB con
+formatos inválidos. No hay migración ni modificación de registros ya existentes.

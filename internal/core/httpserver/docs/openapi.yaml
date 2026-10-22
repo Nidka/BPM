@@ -174,6 +174,7 @@ paths:
                   type: string
                   minLength: 2
                   maxLength: 100
+                  description: Nombre personal con letras Unicode, diacríticos, espacios, apóstrofos o guiones; sin números ni controles.
       responses:
         "200":
           description: Perfil registrado o perfil existente sin modificaciones.
@@ -612,11 +613,35 @@ paths:
   /api/v1/organizations/{organizationID}/checklist-runs:
     parameters:
       - {$ref: "#/components/parameters/OrganizationID"}
+    get:
+      tags: [Checklists]
+      summary: Consultar revisiones en curso y finalizadas
+      operationId: getChecklistRunHistory
+      description: Mis revisiones o supervisión autorizada. CHEF solo consulta sedes asignadas; ADMIN y SUPER_ADMIN supervisan. WORKER no accede al historial. Cada página vuelve a comprobar permisos. Orden por fecha del servidor e ID descendentes.
+      security: [{FirebaseBearer: []}]
+      parameters:
+        - {$ref: "#/components/parameters/PageSize"}
+        - {$ref: "#/components/parameters/PageToken"}
+        - {$ref: "#/components/parameters/SearchQuery"}
+        - {name: scope, in: query, schema: {type: string, enum: [mine, team], default: mine}}
+        - {name: status, in: query, schema: {type: string, enum: [DRAFT, SUBMITTED]}}
+      responses:
+        "200":
+          description: Revisiones autorizadas.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data: {type: array, items: {$ref: "#/components/schemas/ChecklistRunSummary"}}
+                  pagination: {$ref: "#/components/schemas/Pagination"}
+        default: {$ref: "#/components/responses/WorkspaceError"}
     post:
       tags: [Checklists]
       summary: Iniciar ejecución desde un cliente online u offline
       operationId: createChecklistRun
-      description: Requiere sede activa asignada y versión publicada del mismo tenant. Reintento con el mismo ID y contenido devuelve la ejecución existente; otra operación devuelve 409.
+      description: Solo CHEF con sede activa asignada y versión publicada del mismo tenant. Reintento con el mismo ID y contenido devuelve la ejecución existente; otra operación devuelve 409.
       security: [{FirebaseBearer: []}]
       requestBody:
         required: true
@@ -846,10 +871,30 @@ components:
         templateVersionId: {type: string, format: uuid}
         clientOperationId: {type: string, format: uuid}
         clientCreatedAt: {type: string, format: date-time}
+    ChecklistRunSummary:
+      type: object
+      additionalProperties: false
+      required: [id, templateName, locationId, locationName, performedBy, performedByName, status, createdAt, answerCount, questionCount]
+      properties:
+        id: {type: string, format: uuid}
+        templateName: {type: string}
+        locationId: {type: string, format: uuid}
+        locationName: {type: string}
+        performedBy: {type: string}
+        performedByName: {type: string}
+        status: {type: string, enum: [DRAFT, SUBMITTED]}
+        createdAt: {type: string, format: date-time}
+        submittedAt: {type: string, format: date-time, nullable: true}
+        compliancePercent: {type: number, minimum: 0, maximum: 100, nullable: true}
+        answerCount: {type: integer, minimum: 0, maximum: 100}
+        questionCount: {type: integer, minimum: 1, maximum: 100}
     ChecklistRun:
       type: object
       required: [id, organizationId, locationId, templateVersionId, performedBy, clientOperationId, clientCreatedAt, status, rowVersion, items, answers]
       properties:
+        templateName: {type: string}
+        locationName: {type: string}
+        createdAt: {type: string, format: date-time}
         id: {type: string, format: uuid}
         organizationId: {type: string}
         locationId: {type: string, format: uuid}
@@ -877,9 +922,9 @@ components:
         tradeName: {type: string, maxLength: 200}
         taxId: {type: string, maxLength: 20}
         businessType: {type: string, enum: [RESTAURANT, CAFETERIA, CATERING, RELATED_SERVICE]}
-        contactName: {type: string, maxLength: 160}
-        contactPhone: {type: string, maxLength: 30}
-        contactEmail: {type: string, maxLength: 320}
+        contactName: {type: string, maxLength: 160, description: "Nombre personal opcional: letras, diacríticos, espacios, apóstrofos y guiones; sin números."}
+        contactPhone: {type: string, maxLength: 30, description: "Opcional. De 7 a 15 dígitos; permite + inicial, espacios, guiones y paréntesis."}
+        contactEmail: {type: string, maxLength: 320, description: "Opcional. Correo completo con dominio con punto, sin controles; hasta 320 bytes."}
     WorkspaceLocation:
       type: object
       additionalProperties: false
@@ -889,7 +934,7 @@ components:
         name: {type: string, minLength: 2, maxLength: 160}
         address: {type: string, minLength: 3, maxLength: 300}
         district: {type: string, maxLength: 120}
-        contactPhone: {type: string, maxLength: 30}
+        contactPhone: {type: string, maxLength: 30, description: "Opcional. De 7 a 15 dígitos; permite + inicial, espacios, guiones y paréntesis."}
         timezone: {type: string, readOnly: true, example: America/Lima}
     WorkspaceMember:
       type: object

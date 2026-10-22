@@ -63,7 +63,7 @@ func TestRegisterRejectsUnverifiedOrInvalidFieldsBeforeWriting(t *testing.T) {
 			t.Fatalf("expected safe rejection, got %v", err)
 		}
 	}
-	for _, name := range []string{"", "a", "Bad\nName"} {
+	for _, name := range []string{"", "a", "Bad\nName", "Ana2", "Persona 123", "Ana 🙂"} {
 		repo := &registrationStub{}
 		_, err := NewRegister(repo).Execute(context.Background(), contracts.Identity{UID: "uid", Email: "x@example.com", EmailVerified: true}, name)
 		var validation *domain.ValidationError

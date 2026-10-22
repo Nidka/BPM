@@ -208,10 +208,10 @@ func (s *store) Run(ctx context.Context, a domain.Actor, org, runID string, lock
 	}
 	var score *string
 	err = s.tx.QueryRow(ctx, `SELECT id::text,organization_id,location_id::text,template_version_id::text,performed_by,
-		client_operation_id::text,client_created_at,status,row_version,compliance_percent::text,submitted_at
+		client_operation_id::text,client_created_at,status,row_version,compliance_percent::text,submitted_at,created_at
 		FROM checklist_runs WHERE organization_id=$1 AND id=$2`+lockClause, org, runID).Scan(
 		&v.ID, &v.OrganizationID, &v.LocationID, &v.TemplateVersionID, &v.PerformedBy,
-		&v.ClientOperationID, &v.ClientCreatedAt, &v.Status, &v.RowVersion, &score, &v.SubmittedAt)
+		&v.ClientOperationID, &v.ClientCreatedAt, &v.Status, &v.RowVersion, &score, &v.SubmittedAt, &v.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return v, domain.ErrNotFound
 	}
@@ -221,11 +221,20 @@ func (s *store) Run(ctx context.Context, a domain.Actor, org, runID string, lock
 	if v.CompliancePercent, err = parseNullable(score); err != nil {
 		return v, err
 	}
-	if err = s.LocationAccess(ctx, a, org, v.LocationID); err != nil {
-		return v, err
+	if a.Role != "SUPER_ADMIN" {
+		if err = s.LocationAccess(ctx, a, org, v.LocationID); err != nil {
+			return v, err
+		}
 	}
 	if a.ID != v.PerformedBy && a.Role != "ADMIN" && a.Role != "CHEF" && a.Role != "SUPER_ADMIN" {
 		return v, domain.ErrDenied
+	}
+	if err = s.tx.QueryRow(ctx, `SELECT t.name,l.name,u.display_name FROM checklist_template_versions v
+ JOIN checklist_templates t ON t.organization_id=v.organization_id AND t.id=v.template_id
+ JOIN locations l ON l.organization_id=v.organization_id AND l.id=$3
+ JOIN application_users u ON u.id=$4
+ WHERE v.organization_id=$1 AND v.id=$2`, org, v.TemplateVersionID, v.LocationID, v.PerformedBy).Scan(&v.TemplateName, &v.LocationName, &v.PerformedByName); err != nil {
+		return v, err
 	}
 	rows, err := s.tx.Query(ctx, `SELECT id::text,section_name,label,response_type,display_order,required,minimum_value::text,maximum_value::text,COALESCE(unit,''),evidence_required_on_failure
 		FROM checklist_items WHERE organization_id=$1 AND template_version_id=$2 ORDER BY display_order`, org, v.TemplateVersionID)

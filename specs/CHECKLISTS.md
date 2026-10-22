@@ -11,7 +11,7 @@ aplicación, usando el pool y el verificador Firebase ya existentes.
    publicada no se edita.
 2. Un miembro activo descarga páginas de plantillas publicadas completas del tenant.
    Los cursores permiten continuar sin limitar el catálogo a las primeras 100.
-3. Un miembro con acceso a una sede activa inicia una ejecución con ID,
+3. El CHEF con acceso a una sede activa inicia una ejecución con ID,
    `clientOperationId` y `clientCreatedAt` generados por el cliente. Repetir
    exactamente el alta devuelve la ejecución existente sin duplicar auditoría.
 4. El ejecutor guarda el conjunto completo de respuestas usando
@@ -35,8 +35,9 @@ token con correo verificado y usuario BPM activo.
 | GET | `/checklists` | miembro activo |
 | GET | `/checklists/{templateID}` | miembro activo; última versión publicada completa |
 | POST | `/checklists` | ADMIN o SUPER_ADMIN |
-| POST | `/checklist-runs` | miembro asignado a sede, o ADMIN |
-| GET | `/checklist-runs/{runID}` | ejecutor o supervisor con acceso a sede |
+| GET | `/checklist-runs` | CHEF en sedes asignadas; ADMIN/SUPER_ADMIN supervisan |
+| POST | `/checklist-runs` | CHEF asignado a sede |
+| GET | `/checklist-runs/{runID}` | CHEF/ADMIN/SUPER_ADMIN con acceso a sede |
 | PUT | `/checklist-runs/{runID}/answers` | ejecutor; `Idempotency-Key` |
 | POST | `/checklist-runs/{runID}/submit` | ejecutor; `Idempotency-Key` |
 
@@ -49,7 +50,7 @@ durante al menos 24 horas; no deben reciclarse.
 ## Límites conscientes de esta primera base
 
 - Aún no hay edición de plantilla ni publicación de versión 2, asignaciones
-  programadas ni listado paginado de ejecuciones. No hay endpoint de archivo.
+  programadas. No hay endpoint de archivo.
 - La carga de evidencias privadas en R2 será otro módulo. Hasta entonces la API
   no permite crear ítems con evidencia obligatoria. Si existiera uno en datos
   previos, se rechaza el envío de una respuesta fallida para no omitir el control.
@@ -85,3 +86,28 @@ por compatibilidad. No se cambian tablas ni variables. Las pruebas recorren 137
 plantillas con 100 preguntas cada una, comprueban el detalle posterior a la página
 inicial, tenant ajeno y membresía revocada entre páginas. PostgreSQL temporal y CI
 se describen en ORGANIZATIONS.md.
+
+## Historial y separación de funciones (RF-13 y RF-17)
+
+GET `/checklist-runs` consulta revisiones reales por fecha del servidor e ID
+descendentes. Usa pageSize/pageToken/query y filtros `scope=mine|team`,
+`status=DRAFT|SUBMITTED`. La consulta busca nombre de plantilla, sede y
+responsable y devuelve estado, fechas, respuestas guardadas y cumplimiento.
+No descarga las respuestas completas hasta abrir el detalle.
+
+CHEF ejecuta y puede retomar sus borradores; solo consulta las sedes asignadas.
+ADMIN/SUPER_ADMIN publican plantillas y supervisan; no crean, responden ni
+finalizan controles por tener rol administrativo. WORKER no accede al historial
+ni al detalle. Se revalidan usuario, membresía y sedes en cada página; el cursor
+se liga a actor, organización, búsqueda, scope y estado. Una revocación invalida
+el acceso aunque se conserve un cursor anterior.
+
+La consulta del historial no inicia otra revisión ni escribe auditoría de
+ejecución. Cada revisión nueva sigue siendo una operación explícita con UUID y
+fecha: varias revisiones de la misma plantilla son registros distintos, no
+duplicados del reintento idempotente. No se impone frecuencia de revisión sin
+un contrato de asignación programada. La exportación RF-17 continúa pendiente.
+
+Pruebas: 137 revisiones, fechas coincidentes, paginación sin duplicados, filtros,
+tenant y sede ajenos, rol WORKER, revocación entre páginas y permisos de escritura
+por rol. PostgreSQL temporal exclusivo `bpm_test`; no hay migraciones nuevas.

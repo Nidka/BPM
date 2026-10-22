@@ -18,6 +18,7 @@ import (
 )
 
 type Store interface {
+	RunHistory(context.Context, domain.Actor, string, pagination.Window, domain.HistoryFilter) ([]domain.RunSummary, error)
 	Actor(context.Context, string, string) (domain.Actor, error)
 	LocationAccess(context.Context, domain.Actor, string, string) error
 	CatalogPage(context.Context, string, pagination.Window, string) ([]domain.Template, error)
@@ -148,6 +149,9 @@ func (s *Service) CreateRun(ctx context.Context, uid, org string, v domain.Run) 
 		if e != nil {
 			return e
 		}
+		if !domain.CanPerformRuns(actor.Role) {
+			return domain.ErrDenied
+		}
 		if e = db.LocationAccess(ctx, actor, org, v.LocationID); e != nil {
 			return e
 		}
@@ -165,6 +169,9 @@ func (s *Service) Run(ctx context.Context, uid, org, runID string) (v domain.Run
 		actor, e := db.Actor(ctx, uid, org)
 		if e != nil {
 			return e
+		}
+		if !domain.CanSuperviseRuns(actor.Role) {
+			return domain.ErrDenied
 		}
 		v, e = db.Run(ctx, actor, org, runID, false)
 		return e
@@ -218,6 +225,9 @@ func (s *Service) SaveAnswers(ctx context.Context, uid, org, runID string, versi
 		actor, e := db.Actor(ctx, uid, org)
 		if e != nil {
 			return e
+		}
+		if !domain.CanPerformRuns(actor.Role) {
+			return domain.ErrDenied
 		}
 		v, e = db.Run(ctx, actor, org, runID, true)
 		if e != nil {
@@ -288,6 +298,9 @@ func (s *Service) Submit(ctx context.Context, uid, org, runID string, version in
 		actor, e := db.Actor(ctx, uid, org)
 		if e != nil {
 			return e
+		}
+		if !domain.CanPerformRuns(actor.Role) {
+			return domain.ErrDenied
 		}
 		v, e = db.Run(ctx, actor, org, runID, true)
 		if e != nil {

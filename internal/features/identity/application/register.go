@@ -5,10 +5,8 @@ import (
 	"errors"
 	"github.com/Nidka/BPM-service/internal/core/contracts"
 	"github.com/Nidka/BPM-service/internal/features/identity/domain"
-	"net/mail"
+	"github.com/Nidka/BPM-service/internal/shared/domain/input"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 )
 
 type RegistrationRepository interface {
@@ -29,13 +27,12 @@ func (uc *Register) Execute(ctx context.Context, identity contracts.Identity, di
 		return domain.Profile{}, domain.ErrEmailUnverified
 	}
 	email := strings.TrimSpace(identity.Email)
-	parsed, err := mail.ParseAddress(email)
-	if err != nil || parsed.Address != email || len(email) > 320 {
+	if !input.Email(email) {
 		return domain.Profile{}, domain.ErrUnauthenticated
 	}
 	name := strings.TrimSpace(displayName)
-	if utf8.RuneCountInString(name) < 2 || utf8.RuneCountInString(name) > 100 || strings.IndexFunc(name, unicode.IsControl) >= 0 {
-		return domain.Profile{}, &domain.ValidationError{Fields: map[string]string{"displayName": "Ingresa un nombre de entre 2 y 100 caracteres, sin caracteres de control."}}
+	if !input.PersonName(displayName, 2, 100) {
+		return domain.Profile{}, &domain.ValidationError{Fields: map[string]string{"displayName": "Usa entre 2 y 100 caracteres: letras, espacios, apóstrofos o guiones; sin números."}}
 	}
 	profile, err := uc.repository.FindByUserID(ctx, identity.UID)
 	if err == nil {

@@ -60,3 +60,15 @@ shared               -> biblioteca estándar; nunca features
 No se crean interfaces para cada struct. Las interfaces se declaran en el lado
 consumidor y solo cuando existe una frontera sustituible: persistencia,
 proveedores externos, reloj, generador de identificadores o transacción.
+
+## Formatos de entrada compartidos
+
+`shared/domain/input` contiene formatos puros de texto, nombre personal, correo
+y teléfono. Tiene consumidores reales en identidad y organizaciones; no conoce
+HTTP ni persistencia. Cada caso de uso decide obligatoriedad, límites y clave del
+error. No sustituye permisos, pertenencia de sedes ni reglas sanitarias.
+Los nombres personales admiten letras Unicode, diacríticos, espacios, apóstrofos
+y guiones; no números. Los nombres de empresas y sedes conservan texto con números.
+Los teléfonos admiten 7–15 dígitos y formato con + inicial, espacios, guiones y
+paréntesis (hasta 30 caracteres); el vacío es opcional. Las pruebas negativas de
+los casos de uso confirman que los datos inválidos no llegan a la transacción.

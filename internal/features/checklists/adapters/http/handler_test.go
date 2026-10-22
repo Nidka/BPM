@@ -34,6 +34,11 @@ func TestProtectedChecklistRoutes(t *testing.T) {
 		status                                int
 	}{
 		{"missing token", "GET", "/organizations/org/checklists", "", "", "UNAUTHENTICATED", true, false, 401},
+		{"history missing token", "GET", "/organizations/org/checklist-runs", "", "", "UNAUTHENTICATED", true, false, 401},
+		{"history repeated scope", "GET", "/organizations/org/checklist-runs?scope=mine&scope=team", "", "token", "INVALID_PAGINATION", true, false, 400},
+		{"history unknown scope", "GET", "/organizations/org/checklist-runs?scope=all", "", "token", "INVALID_PAGINATION", true, false, 400},
+		{"history invalid status", "GET", "/organizations/org/checklist-runs?status=OPEN", "", "token", "INVALID_PAGINATION", true, false, 400},
+		{"history unknown parameter", "GET", "/organizations/org/checklist-runs?actor=other", "", "token", "INVALID_PAGINATION", true, false, 400},
 		{"unverified", "GET", "/organizations/org/checklists", "", "token", "EMAIL_NOT_VERIFIED", false, false, 403},
 		{"internal error", "GET", "/organizations/org/checklists", "", "token", "INTERNAL_ERROR", true, false, 500},
 		{"unknown field", "POST", "/organizations/org/checklists", `{"platformRole":"SUPER_ADMIN"}`, "token", "INVALID_REQUEST", true, false, 400},

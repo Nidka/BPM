@@ -76,7 +76,7 @@ func TestTemplateRoleAndValidation(t *testing.T) {
 }
 
 func TestSaveAnswersVersionAndOwnership(t *testing.T) {
-	f := &fakeStore{actor: domain.Actor{ID: "worker", Role: "WORKER"}, run: domain.Run{
+	f := &fakeStore{actor: domain.Actor{ID: "worker", Role: "CHEF"}, run: domain.Run{
 		ID: testRunID, PerformedBy: "worker", Status: "DRAFT", RowVersion: 2,
 		Items: []domain.Item{{ID: testItemID, ResponseType: "COMPLIANCE"}},
 	}}
@@ -103,7 +103,7 @@ func TestSubmitCalculatesServerScore(t *testing.T) {
 	naID := "20000000-0000-0000-0000-000000000003"
 	textID := "20000000-0000-0000-0000-000000000004"
 	min, max, measured := 0.0, 5.0, 8.0
-	f := &fakeStore{actor: domain.Actor{ID: "worker", Role: "WORKER"}, run: domain.Run{
+	f := &fakeStore{actor: domain.Actor{ID: "worker", Role: "CHEF"}, run: domain.Run{
 		ID: testRunID, PerformedBy: "worker", Status: "DRAFT", RowVersion: 1,
 		Items: []domain.Item{
 			{ID: testItemID, ResponseType: "COMPLIANCE", Required: true},
@@ -133,7 +133,7 @@ func TestSubmitCalculatesServerScore(t *testing.T) {
 }
 
 func TestCreateRunClientTimestampNormalized(t *testing.T) {
-	f := &fakeStore{actor: domain.Actor{ID: "worker", Role: "WORKER"}}
+	f := &fakeStore{actor: domain.Actor{ID: "worker", Role: "CHEF"}}
 	s := New(fakeWork{f})
 	now := time.Now().UTC().Add(-time.Minute)
 	run, err := s.CreateRun(context.Background(), "worker", "org", domain.Run{ID: testRunID,
@@ -146,4 +146,35 @@ func TestCreateRunClientTimestampNormalized(t *testing.T) {
 
 func (f *fakeStore) CatalogPage(context.Context, string, pagination.Window, string) ([]domain.Template, error) {
 	return nil, nil
+}
+
+func (f *fakeStore) RunHistory(context.Context, domain.Actor, string, pagination.Window, domain.HistoryFilter) ([]domain.RunSummary, error) {
+	return nil, nil
+}
+
+func TestOnlyChefPerformsDailyReviews(t *testing.T) {
+	for _, role := range []string{"ADMIN", "SUPER_ADMIN", "WORKER", "CHEF"} {
+		t.Run(role, func(t *testing.T) {
+			f := &fakeStore{actor: domain.Actor{ID: "actor", Role: role}, run: domain.Run{ID: testRunID, OrganizationID: "org", PerformedBy: "actor", Status: "DRAFT", RowVersion: 1, Items: []domain.Item{{ID: testItemID, ResponseType: "COMPLIANCE", Required: true}}, Answers: []domain.Answer{{ItemID: testItemID, ComplianceResult: "COMPLIANT"}}}}
+			service := New(fakeWork{f})
+			_, createErr := service.CreateRun(context.Background(), "actor", "org", domain.Run{ID: testRunID, LocationID: "40000000-0000-0000-0000-000000000001", TemplateVersionID: "30000000-0000-0000-0000-000000000001", ClientOperationID: "50000000-0000-0000-0000-000000000001", ClientCreatedAt: time.Now().Add(-time.Minute)})
+			_, saveErr := service.SaveAnswers(context.Background(), "actor", "org", testRunID, 1, "save-role-test", f.run.Answers)
+			_, submitErr := service.Submit(context.Background(), "actor", "org", testRunID, 1, "submit-role-test")
+			for _, err := range []error{createErr, saveErr, submitErr} {
+				if role == "CHEF" && err != nil || role != "CHEF" && !errors.Is(err, domain.ErrDenied) {
+					t.Fatalf("unexpected permission for %s: %v", role, err)
+				}
+			}
+		})
+	}
+}
+
+func TestReviewReadingRequiresSupervisionEvenForAnOldOwnRun(t *testing.T) {
+	for _, role := range []string{"ADMIN", "SUPER_ADMIN", "WORKER", "CHEF"} {
+		store := &fakeStore{actor: domain.Actor{ID: "actor", Role: role}, run: domain.Run{ID: testRunID, PerformedBy: "actor"}}
+		_, err := New(fakeWork{store}).Run(context.Background(), "actor", "org", testRunID)
+		if role == "WORKER" && !errors.Is(err, domain.ErrDenied) || role != "WORKER" && err != nil {
+			t.Fatalf("unexpected reading permission for %s: %v", role, err)
+		}
+	}
 }

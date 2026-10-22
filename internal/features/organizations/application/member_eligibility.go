@@ -2,7 +2,7 @@ package application
 
 import (
 	"context"
-	"net/mail"
+	inputformat "github.com/Nidka/BPM-service/internal/shared/domain/input"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -13,11 +13,10 @@ import (
 // CheckMember comprueba el alta sin escribirla y solo después de autorizar al gestor.
 // AddMember vuelve a comprobar usuario, permisos y sedes al confirmar el alta.
 func (s *Service) CheckMember(ctx context.Context, uid, org, email string) (result domain.MemberEligibility, err error) {
-	email = strings.TrimSpace(email)
-	address, e := mail.ParseAddress(email)
-	if e != nil || address.Address != email || len(email) > 320 {
+	if !inputformat.Email(email) {
 		return "", &domain.ValidationError{Fields: map[string]string{"email": "Ingresa un correo válido."}}
 	}
+	email = strings.TrimSpace(email)
 	err = s.withMemberManager(ctx, uid, org, func(db Store) error {
 		var e error
 		result, e = db.MemberEligibility(ctx, org, email)
@@ -40,7 +39,7 @@ func (s *Service) SearchMemberAccounts(ctx context.Context, uid, org, query stri
 		if e != nil {
 			return e
 		}
-		if address, parseErr := mail.ParseAddress(query); parseErr == nil && address.Address == query && strings.Contains(address.Address, "@") && strings.Contains(strings.SplitN(query, "@", 2)[1], ".") {
+		if inputformat.Email(query) && strings.Contains(strings.SplitN(query, "@", 2)[1], ".") {
 			status, e := db.MemberEligibility(ctx, org, query)
 			if e != nil {
 				return e

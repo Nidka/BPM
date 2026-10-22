@@ -49,7 +49,8 @@ contraseñas, email, UID, roles ni tenant en el cuerpo. No cambia el baseline SQ
 Errores: 400 INVALID_REQUEST, 401 UNAUTHENTICATED, 403 EMAIL_NOT_VERIFIED o
 USER_INACTIVE, 409 REGISTRATION_CONFLICT, 415 UNSUPPORTED_MEDIA_TYPE,
 422 VALIDATION_ERROR con fields.displayName, 429 y fallos internos sanitizados.
-Nombre: 2–100 caracteres, sin controles; JSON hasta 4 KiB y sin campos extra.
+Nombre personal: 2–100 caracteres Unicode; letras, diacríticos, espacios,
+apóstrofos y guiones, sin números ni controles; JSON hasta 4 KiB y sin campos extra.
 Existe límite adicional de registro por IP del transporte (no se confían headers
 proxy); en Railway puede agrupar usuarios detrás del proxy. Es por instancia,
 no un rate limiter distribuido. Firebase también debe mantener protección antiabuso.

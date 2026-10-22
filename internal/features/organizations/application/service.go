@@ -3,11 +3,9 @@ package application
 import (
 	"context"
 	"github.com/Nidka/BPM-service/internal/shared/application/pagination"
-	"net/mail"
+	inputformat "github.com/Nidka/BPM-service/internal/shared/domain/input"
 	"regexp"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/Nidka/BPM-service/internal/features/organizations/domain"
 )
@@ -68,13 +66,11 @@ func (s *Service) Workspace(ctx context.Context, uid, org string) (result domain
 var uuid = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
 func validateText(fields map[string]string, field, value string, min, max int) {
-	if n := utf8.RuneCountInString(value); n < min || n > max || strings.IndexFunc(value, unicode.IsControl) >= 0 {
+	if !inputformat.Text(value, min, max) {
 		fields[field] = "Revisa este campo: es obligatorio o supera la longitud permitida."
 	}
 }
 func (s *Service) CreateOrganization(ctx context.Context, uid string, input domain.Organization) (domain.Organization, error) {
-	input.LegalName = strings.TrimSpace(input.LegalName)
-	input.TradeName = strings.TrimSpace(input.TradeName)
 	fields := map[string]string{}
 	if !uuid.MatchString(input.ID) {
 		fields["id"] = "Identificador de operación inválido."
@@ -82,13 +78,15 @@ func (s *Service) CreateOrganization(ctx context.Context, uid string, input doma
 	validateText(fields, "legalName", input.LegalName, 2, 200)
 	validateText(fields, "tradeName", input.TradeName, 0, 200)
 	validateText(fields, "taxId", input.TaxID, 0, 20)
-	validateText(fields, "contactName", input.ContactName, 0, 160)
-	validateText(fields, "contactPhone", input.ContactPhone, 0, 30)
-	if input.ContactEmail != "" {
-		a, e := mail.ParseAddress(input.ContactEmail)
-		if e != nil || a.Address != input.ContactEmail || len(input.ContactEmail) > 320 {
-			fields["contactEmail"] = "Ingresa un correo válido."
-		}
+	if !inputformat.PersonName(input.ContactName, 0, 160) {
+		fields["contactName"] = "Usa letras, espacios, apóstrofos o guiones; sin números (hasta 160 caracteres)."
+	}
+	if !inputformat.Phone(input.ContactPhone) {
+		fields["contactPhone"] = "Usa entre 7 y 15 dígitos; puedes incluir + al inicio, espacios, guiones y paréntesis."
+	}
+	if !inputformat.Text(input.ContactEmail, 0, 320) || len(input.ContactEmail) > 320 ||
+		strings.TrimSpace(input.ContactEmail) != "" && !inputformat.Email(input.ContactEmail) {
+		fields["contactEmail"] = "Ingresa un correo válido."
 	}
 	switch input.BusinessType {
 	case "RESTAURANT", "CAFETERIA", "CATERING", "RELATED_SERVICE":
@@ -98,6 +96,8 @@ func (s *Service) CreateOrganization(ctx context.Context, uid string, input doma
 	if len(fields) > 0 {
 		return domain.Organization{}, &domain.ValidationError{Fields: fields}
 	}
+	input.LegalName = strings.TrimSpace(input.LegalName)
+	input.TradeName = strings.TrimSpace(input.TradeName)
 	err := s.work.Within(ctx, func(db Store) error {
 		actor, e := db.Actor(ctx, uid)
 		if e != nil {
@@ -111,8 +111,6 @@ func (s *Service) CreateOrganization(ctx context.Context, uid string, input doma
 	return input, err
 }
 func (s *Service) CreateLocation(ctx context.Context, uid, org string, input domain.Location) (domain.Location, error) {
-	input.Name = strings.TrimSpace(input.Name)
-	input.Address = strings.TrimSpace(input.Address)
 	fields := map[string]string{}
 	if !uuid.MatchString(input.ID) {
 		fields["id"] = "Identificador de operación inválido."
@@ -120,11 +118,15 @@ func (s *Service) CreateLocation(ctx context.Context, uid, org string, input dom
 	validateText(fields, "name", input.Name, 2, 160)
 	validateText(fields, "address", input.Address, 3, 300)
 	validateText(fields, "district", input.District, 0, 120)
-	validateText(fields, "contactPhone", input.ContactPhone, 0, 30)
+	if !inputformat.Phone(input.ContactPhone) {
+		fields["contactPhone"] = "Usa entre 7 y 15 dígitos; puedes incluir + al inicio, espacios, guiones y paréntesis."
+	}
 	input.Timezone = "America/Lima"
 	if len(fields) > 0 {
 		return domain.Location{}, &domain.ValidationError{Fields: fields}
 	}
+	input.Name = strings.TrimSpace(input.Name)
+	input.Address = strings.TrimSpace(input.Address)
 	err := s.work.Within(ctx, func(db Store) error {
 		actor, e := db.Actor(ctx, uid)
 		if e != nil {
@@ -142,10 +144,8 @@ func (s *Service) CreateLocation(ctx context.Context, uid, org string, input dom
 	return input, err
 }
 func (s *Service) AddMember(ctx context.Context, uid, org, email, role string, locations []string) error {
-	email = strings.TrimSpace(email)
 	fields := map[string]string{}
-	a, e := mail.ParseAddress(email)
-	if e != nil || a.Address != email || len(email) > 320 {
+	if !inputformat.Email(email) {
 		fields["email"] = "Ingresa el correo de una cuenta BPM existente."
 	}
 	if role != "ADMIN" && role != "CHEF" && role != "WORKER" {
@@ -165,6 +165,7 @@ func (s *Service) AddMember(ctx context.Context, uid, org, email, role string, l
 	if len(fields) > 0 {
 		return &domain.ValidationError{Fields: fields}
 	}
+	email = strings.TrimSpace(email)
 	return s.work.Within(ctx, func(db Store) error {
 		actor, e := db.Actor(ctx, uid)
 		if e != nil {

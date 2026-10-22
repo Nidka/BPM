@@ -65,10 +65,12 @@ func TestChecklistPostgres(t *testing.T) {
 	runID := "60000000-0000-0000-0000-000000000001"
 	operationID := "70000000-0000-0000-0000-000000000001"
 	exec(`INSERT INTO organizations(id,legal_name,business_type) VALUES($1,'Uno','RESTAURANT'),($2,'Dos','RESTAURANT')`, org, other)
-	exec(`INSERT INTO application_users(id,email,display_name) VALUES('admin','admin@example.invalid','Admin'),('worker','worker@example.invalid','Worker'),('outsider','outsider@example.invalid','Outsider')`)
-	exec(`INSERT INTO organization_memberships(organization_id,user_id,role) VALUES($1,'admin','ADMIN'),($1,'worker','WORKER'),($2,'outsider','WORKER')`, org, other)
+	exec(`INSERT INTO application_users(id,email,display_name) VALUES('admin','admin@example.invalid','Admin'),('worker','worker@example.invalid','Worker'),('chef','chef@example.invalid','Chef'),('super','super@example.invalid','Super'),('outsider','outsider@example.invalid','Outsider')`)
+	exec(`INSERT INTO organization_memberships(organization_id,user_id,role) VALUES($1,'admin','ADMIN'),($1,'worker','WORKER'),($1,'chef','CHEF'),($2,'outsider','WORKER')`, org, other)
 	exec(`INSERT INTO locations(id,organization_id,name,address) VALUES($1,$2,'Cocina','Av. Prueba 123')`, loc, org)
 	exec(`INSERT INTO membership_locations(organization_id,user_id,location_id) VALUES($1,'worker',$2)`, org, loc)
+	exec(`INSERT INTO membership_locations(organization_id,user_id,location_id) VALUES($1,'chef',$2)`, org, loc)
+	exec(`UPDATE application_users SET platform_role='SUPER_ADMIN' WHERE id='super'`)
 	service := application.New(New(pool))
 	tpl := domain.Template{ID: templateID, VersionID: versionID, Name: "Higiene diaria", Area: "Cocina",
 		Items: []domain.Item{{ID: itemID, SectionName: "Personal", Label: "Lavado de manos", ResponseType: "COMPLIANCE", DisplayOrder: 1, Required: true}}}
@@ -89,39 +91,40 @@ func TestChecklistPostgres(t *testing.T) {
 	if _, err = service.CreateRun(ctx, "outsider", org, input); !errors.Is(err, domain.ErrDenied) {
 		t.Fatal("outsider started run", err)
 	}
-	created, err := service.CreateRun(ctx, "worker", org, input)
+	created, err := service.CreateRun(ctx, "chef", org, input)
 	if err != nil || created.RowVersion != 1 {
 		t.Fatal("create run", err)
 	}
-	if _, err = service.CreateRun(ctx, "worker", org, input); err != nil {
+	if _, err = service.CreateRun(ctx, "chef", org, input); err != nil {
 		t.Fatal("replay create run", err)
 	}
 	answers := []domain.Answer{{ItemID: itemID, ComplianceResult: "COMPLIANT"}}
-	saved, err := service.SaveAnswers(ctx, "worker", org, runID, 1, "save-0001", answers)
+	saved, err := service.SaveAnswers(ctx, "chef", org, runID, 1, "save-0001", answers)
 	if err != nil || saved.RowVersion != 2 || len(saved.Answers) != 1 {
 		t.Fatal("save answers", err)
 	}
-	replayed, err := service.SaveAnswers(ctx, "worker", org, runID, 1, "save-0001", answers)
+	replayed, err := service.SaveAnswers(ctx, "chef", org, runID, 1, "save-0001", answers)
 	if err != nil || replayed.RowVersion != 2 {
 		t.Fatal("idempotent save", err)
 	}
-	if _, err = service.SaveAnswers(ctx, "worker", org, runID, 1, "save-0002", answers); !errors.Is(err, domain.ErrVersionConflict) {
+	if _, err = service.SaveAnswers(ctx, "chef", org, runID, 1, "save-0002", answers); !errors.Is(err, domain.ErrVersionConflict) {
 		t.Fatal("stale save", err)
 	}
 	if _, err = service.Submit(ctx, "outsider", org, runID, 2, "submit-0000"); !errors.Is(err, domain.ErrDenied) {
 		t.Fatal("outsider submitted", err)
 	}
-	submitted, err := service.Submit(ctx, "worker", org, runID, 2, "submit-0001")
+	submitted, err := service.Submit(ctx, "chef", org, runID, 2, "submit-0001")
 	if err != nil || submitted.Status != "SUBMITTED" || submitted.CompliancePercent == nil || *submitted.CompliancePercent != 100 {
 		t.Fatal("submit", err)
 	}
-	if _, err = service.SaveAnswers(ctx, "worker", org, runID, 3, "save-0003", answers); !errors.Is(err, domain.ErrConflict) {
+	if _, err = service.SaveAnswers(ctx, "chef", org, runID, 3, "save-0003", answers); !errors.Is(err, domain.ErrConflict) {
 		t.Fatal("edited submitted run", err)
 	}
 	var count int
 	if err = pool.QueryRow(ctx, `SELECT count(*) FROM audit_events WHERE organization_id=$1`, org).Scan(&count); err != nil || count != 4 {
 		t.Fatal("audit count", err, count)
 	}
+	testRunHistory(t, ctx, pool, service, org, other, loc, versionID, itemID)
 	testCatalogPagination(t, ctx, pool, service, org, other)
 
 }

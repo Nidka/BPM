@@ -33,6 +33,8 @@ type Item struct {
 }
 
 type Run struct {
+	TemplateName, LocationName, PerformedByName                    string
+	CreatedAt                                                      time.Time
 	ID, OrganizationID, LocationID, TemplateVersionID, PerformedBy string
 	ClientOperationID                                              string
 	ClientCreatedAt                                                time.Time

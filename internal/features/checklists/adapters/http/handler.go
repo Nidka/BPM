@@ -88,6 +88,10 @@ func (v answerDTO) domain() domain.Answer {
 }
 
 type runDTO struct {
+	PerformedByName   string      `json:"performedByName"`
+	TemplateName      string      `json:"templateName"`
+	LocationName      string      `json:"locationName"`
+	CreatedAt         time.Time   `json:"createdAt"`
 	ID                string      `json:"id"`
 	OrganizationID    string      `json:"organizationId"`
 	LocationID        string      `json:"locationId"`
@@ -112,7 +116,7 @@ func run(v domain.Run) runDTO {
 	for _, a := range v.Answers {
 		answers = append(answers, answerDTO{a.ItemID, a.ComplianceResult, a.TextValue, a.Observation, a.NumericValue})
 	}
-	return runDTO{v.ID, v.OrganizationID, v.LocationID, v.TemplateVersionID, v.PerformedBy,
+	return runDTO{v.PerformedByName, v.TemplateName, v.LocationName, v.CreatedAt, v.ID, v.OrganizationID, v.LocationID, v.TemplateVersionID, v.PerformedBy,
 		v.ClientOperationID, v.ClientCreatedAt, v.Status, v.RowVersion, v.CompliancePercent, v.SubmittedAt, items, answers}
 }
 
@@ -122,6 +126,7 @@ func (h *Handler) Register(r chi.Router, auth func(http.Handler) http.Handler) {
 		r.Get("/organizations/{organizationID}/checklists", h.catalog)
 		r.Get("/organizations/{organizationID}/checklists/{templateID}", h.getTemplate)
 		r.Post("/organizations/{organizationID}/checklists", h.createTemplate)
+		r.Get("/organizations/{organizationID}/checklist-runs", h.history)
 		r.Post("/organizations/{organizationID}/checklist-runs", h.createRun)
 		r.Get("/organizations/{organizationID}/checklist-runs/{runID}", h.getRun)
 		r.Put("/organizations/{organizationID}/checklist-runs/{runID}/answers", h.saveAnswers)
