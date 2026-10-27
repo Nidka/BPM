@@ -42,7 +42,7 @@ Reglas obligatorias:
 
 Estado actual: identidad y organizaciones ya permiten perfiles, tenant activo,
 altas de organización/sede y adición de miembros; leer `specs/ORGANIZATIONS.md`.
-`features/checklists` implementa la primera versión operativa con catálogo,
-borrador, respuestas y envío; leer `specs/CHECKLISTS.md`. Las asignaciones,
+`features/checklists` implementa catálogo, borrador, respuestas, envío y
+programación por sede/frecuencia; leer `specs/CHECKLISTS.md`. Turnos,
 evidencias, capacitación e incidencias siguen pendientes.
 

@@ -20,11 +20,24 @@ type fakeWork struct{ store *fakeStore }
 func (w fakeWork) Within(_ context.Context, fn func(Store) error) error { return fn(w.store) }
 
 type fakeStore struct {
+	schedule       domain.Assignment
+	periodRuns     map[string]domain.AssignedRun
+	alreadyStarted bool
 	actor          domain.Actor
 	run            domain.Run
 	saved, sent    bool
 	score          float64
 	createTemplate bool
+}
+
+func (f *fakeStore) StartedRun(context.Context, string, string) (bool, error) {
+	return f.alreadyStarted, nil
+}
+func (f *fakeStore) RunSchedule(context.Context, domain.Actor, string, domain.Run) (domain.Assignment, error) {
+	return f.schedule, nil
+}
+func (f *fakeStore) PeriodRuns(context.Context, string, []domain.AssignmentPeriod) (map[string]domain.AssignedRun, error) {
+	return f.periodRuns, nil
 }
 
 func (f *fakeStore) Actor(context.Context, string, string) (domain.Actor, error)        { return f.actor, nil }

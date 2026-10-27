@@ -13,6 +13,7 @@ import (
 )
 
 func Routes(pool *pgxpool.Pool, verifier contracts.TokenVerifier, logger *slog.Logger, sessions ...contracts.SessionValidator) func(chi.Router) {
-	h := httpadapter.New(application.New(postgres.New(pool)), logger)
+	repository := postgres.New(pool)
+	h := httpadapter.New(application.New(repository), application.NewAssignments(repository), logger)
 	return func(r chi.Router) { h.Register(r, middleware.Authenticate(verifier, sessions...)) }
 }

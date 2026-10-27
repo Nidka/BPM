@@ -126,5 +126,6 @@ func TestChecklistPostgres(t *testing.T) {
 	}
 	testRunHistory(t, ctx, pool, service, org, other, loc, versionID, itemID)
 	testCatalogPagination(t, ctx, pool, service, org, other)
+	testAssignments(t, ctx, pool, service, org, other, loc, templateID, versionID, itemID)
 
 }

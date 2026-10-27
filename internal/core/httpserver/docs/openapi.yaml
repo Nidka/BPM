@@ -610,6 +610,88 @@ paths:
                 properties:
                   data: {$ref: "#/components/schemas/ChecklistTemplate"}
         default: {$ref: "#/components/responses/WorkspaceError"}
+  /api/v1/organizations/{organizationID}/checklist-assignments:
+    parameters:
+      - {$ref: "#/components/parameters/OrganizationID"}
+    get:
+      tags: [Checklists]
+      summary: Consultar controles programados por sede
+      operationId: getChecklistAssignments
+      description: Solo programaciones activas. ADMIN/SUPER_ADMIN consultan el tenant; CHEF únicamente sedes asignadas; WORKER no accede. Incluye el período local vigente y su revisión, si existe. Buscar por plantilla o sede. Cada página revalida permisos.
+      security: [{FirebaseBearer: []}]
+      parameters:
+        - {$ref: "#/components/parameters/PageSize"}
+        - {$ref: "#/components/parameters/PageToken"}
+        - {$ref: "#/components/parameters/SearchQuery"}
+      responses:
+        "200":
+          description: Programaciones autorizadas y estado de revisión del período.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data: {type: array, items: {$ref: "#/components/schemas/ChecklistAssignment"}}
+                  pagination: {$ref: "#/components/schemas/Pagination"}
+        default: {$ref: "#/components/responses/WorkspaceError"}
+    post:
+      tags: [Checklists]
+      summary: Programar una plantilla publicada en una sede
+      operationId: createChecklistAssignment
+      description: ADMIN/SUPER_ADMIN. Una programación activa por plantilla y sede. El mismo ID y cuerpo confirma el alta previa; reutilizar ID con datos distintos o duplicar una programación activa devuelve 409 RESOURCE_CONFLICT. Sin query. No admite actor ni rol del cliente.
+      security: [{FirebaseBearer: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ChecklistAssignmentCreate"}
+      responses:
+        "200":
+          description: Programación creada o recuperada. Período y revisión se enriquecen al consultar GET.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ChecklistAssignmentEnvelope"}
+        default: {$ref: "#/components/responses/WorkspaceError"}
+  /api/v1/organizations/{organizationID}/checklist-assignments/{assignmentID}:
+    parameters:
+      - {$ref: "#/components/parameters/OrganizationID"}
+      - {$ref: "#/components/parameters/ChecklistAssignmentID"}
+    get:
+      tags: [Checklists]
+      summary: Consultar una programación y la revisión vigente
+      operationId: getChecklistAssignment
+      description: Autoriza tenant y sede, incluso si la programación está inactiva. Mismos roles de consulta de la lista. Sin query ni escrituras.
+      security: [{FirebaseBearer: []}]
+      responses:
+        "200":
+          description: Programación autorizada.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ChecklistAssignmentEnvelope"}
+        default: {$ref: "#/components/responses/WorkspaceError"}
+  /api/v1/organizations/{organizationID}/checklist-assignments/{assignmentID}/deactivate:
+    parameters:
+      - {$ref: "#/components/parameters/OrganizationID"}
+      - {$ref: "#/components/parameters/ChecklistAssignmentID"}
+    post:
+      tags: [Checklists]
+      summary: Dejar de programar revisiones nuevas
+      operationId: deactivateChecklistAssignment
+      description: ADMIN/SUPER_ADMIN. Idempotente. Conserva revisiones iniciadas e historial; no borra registros ni impide al ejecutor terminar un borrador previo. Sin query.
+      security: [{FirebaseBearer: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false}
+      responses:
+        "200":
+          description: Programación inactiva confirmada.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ChecklistAssignmentEnvelope"}
+        default: {$ref: "#/components/responses/WorkspaceError"}
   /api/v1/organizations/{organizationID}/checklist-runs:
     parameters:
       - {$ref: "#/components/parameters/OrganizationID"}
@@ -641,7 +723,7 @@ paths:
       tags: [Checklists]
       summary: Iniciar ejecución desde un cliente online u offline
       operationId: createChecklistRun
-      description: Solo CHEF con sede activa asignada y versión publicada del mismo tenant. Reintento con el mismo ID y contenido devuelve la ejecución existente; otra operación devuelve 409.
+      description: Solo CHEF con sede activa asignada y versión publicada del mismo tenant. Si existe programación activa exige assignmentId (409 ASSIGNMENT_REQUIRED si se omite); una segunda revisión de la programación en el período devuelve 409 ASSIGNMENT_ALREADY_STARTED. Período determinado por fecha del servidor y zona de la sede; clientCreatedAt no lo modifica. Reintento con mismo ID y contenido recupera la ejecución aun si cambió el período o se detuvo la programación. Sin programación se permite revisión libre.
       security: [{FirebaseBearer: []}]
       requestBody:
         required: true
@@ -769,6 +851,11 @@ components:
       required: true
       description: Se autoriza contra membresía activa; enviar un ID no concede acceso.
       schema: {type: string, maxLength: 64}
+    ChecklistAssignmentID:
+      in: path
+      name: assignmentID
+      required: true
+      schema: {type: string, format: uuid}
     ChecklistRunID:
       in: path
       name: runID
@@ -861,6 +948,55 @@ components:
         textValue: {type: string, maxLength: 2000}
         observation: {type: string, maxLength: 2000}
         numericValue: {type: number, nullable: true}
+    ChecklistAssignmentCreate:
+      type: object
+      additionalProperties: false
+      required: [id, templateId, locationId, frequency]
+      properties:
+        id: {type: string, format: uuid}
+        templateId: {type: string, format: uuid}
+        locationId: {type: string, format: uuid}
+        frequency: {type: string, enum: [ONCE, DAILY, WEEKLY, MONTHLY]}
+        dueTime: {type: string, pattern: '^(|([01][0-9]|2[0-3]):[0-5][0-9])$', description: "Hora de referencia local opcional. No activa notificaciones ni bloquea el inicio."}
+    ChecklistAssignedRun:
+      type: object
+      additionalProperties: false
+      required: [id, status, performedBy, performedByName, createdAt, submittedAt]
+      properties:
+        id: {type: string, format: uuid}
+        status: {type: string, enum: [DRAFT, SUBMITTED]}
+        performedBy: {type: string, maxLength: 128}
+        performedByName: {type: string, maxLength: 200}
+        createdAt: {type: string, format: date-time}
+        submittedAt: {type: string, format: date-time, nullable: true}
+    ChecklistAssignment:
+      type: object
+      additionalProperties: false
+      required: [id, templateId, templateName, templateVersionId, locationId, locationName, frequency, dueTime, timezone, active, createdAt, periodStartsAt, periodEndsAt, run]
+      properties:
+        id: {type: string, format: uuid}
+        templateId: {type: string, format: uuid}
+        templateName: {type: string, maxLength: 180}
+        templateVersionId: {type: string, format: uuid, description: Última versión publicada; cada revisión iniciada conserva su versión inmutable.}
+        locationId: {type: string, format: uuid}
+        locationName: {type: string, maxLength: 160}
+        frequency: {type: string, enum: [ONCE, DAILY, WEEKLY, MONTHLY]}
+        dueTime: {type: string, description: "Hora local HH:MM o cadena vacía."}
+        timezone: {type: string, description: Zona IANA de la sede.}
+        active: {type: boolean}
+        createdAt: {type: string, format: date-time}
+        periodStartsAt: {type: string, format: date-time, nullable: true, description: "Incluyente. GET lo calcula; POST puede devolver null."}
+        periodEndsAt: {type: string, format: date-time, nullable: true, description: "Excluyente; ONCE no termina. Día local, semana desde lunes o mes calendario."}
+        run:
+          type: object
+          allOf: [{$ref: "#/components/schemas/ChecklistAssignedRun"}]
+          nullable: true
+          description: Revisión iniciada en el período consultado, o null.
+    ChecklistAssignmentEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/ChecklistAssignment"}
     ChecklistRunCreate:
       type: object
       additionalProperties: false
@@ -871,6 +1007,7 @@ components:
         templateVersionId: {type: string, format: uuid}
         clientOperationId: {type: string, format: uuid}
         clientCreatedAt: {type: string, format: date-time}
+        assignmentId: {type: string, description: "UUID de programación o vacío para revisión sin programación activa."}
     ChecklistRunSummary:
       type: object
       additionalProperties: false
@@ -897,6 +1034,7 @@ components:
         createdAt: {type: string, format: date-time}
         id: {type: string, format: uuid}
         organizationId: {type: string}
+        assignmentId: {type: string, description: "UUID de programación o vacío en revisión libre."}
         locationId: {type: string, format: uuid}
         templateVersionId: {type: string, format: uuid}
         performedBy: {type: string}
