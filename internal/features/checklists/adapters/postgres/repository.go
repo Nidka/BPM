@@ -21,6 +21,10 @@ type store struct{ tx pgx.Tx }
 func New(pool *pgxpool.Pool) *Repository { return &Repository{pool: pool} }
 
 func (r *Repository) Within(ctx context.Context, fn func(application.Store) error) error {
+	return r.within(ctx, func(s *store) error { return fn(s) })
+}
+
+func (r *Repository) within(ctx context.Context, fn func(*store) error) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -174,18 +178,18 @@ func (s *store) CreateTemplate(ctx context.Context, a domain.Actor, org string, 
 }
 
 func (s *store) CreateRun(ctx context.Context, a domain.Actor, v domain.Run) (domain.Run, error) {
-	tag, err := s.tx.Exec(ctx, `INSERT INTO checklist_runs(id,organization_id,location_id,template_version_id,performed_by,client_operation_id,client_created_at,created_by,updated_by)
-		SELECT $1::uuid,$2::varchar(64),$3::uuid,v.id,$4::varchar(128),$5::uuid,$6::timestamptz,$4::varchar(128),$4::varchar(128) FROM checklist_template_versions v
+	tag, err := s.tx.Exec(ctx, `INSERT INTO checklist_runs(id,organization_id,location_id,template_version_id,performed_by,client_operation_id,client_created_at,created_by,updated_by,assignment_id,created_at)
+		SELECT $1::uuid,$2::varchar(64),$3::uuid,v.id,$4::varchar(128),$5::uuid,$6::timestamptz,$4::varchar(128),$4::varchar(128),NULLIF($8,'')::uuid,$9::timestamptz FROM checklist_template_versions v
 		JOIN checklist_templates t ON t.organization_id=v.organization_id AND t.id=v.template_id
 		WHERE v.organization_id=$2::varchar(64) AND v.id=$7::uuid AND v.status='PUBLISHED' AND t.status='ACTIVE'
-		ON CONFLICT(id) DO NOTHING`, v.ID, v.OrganizationID, v.LocationID, a.ID, v.ClientOperationID, v.ClientCreatedAt, v.TemplateVersionID)
+		ON CONFLICT(id) DO NOTHING`, v.ID, v.OrganizationID, v.LocationID, a.ID, v.ClientOperationID, v.ClientCreatedAt, v.TemplateVersionID, v.AssignmentID, v.CreatedAt)
 	if err != nil {
 		return domain.Run{}, pgConflict(err)
 	}
 	if tag.RowsAffected() == 0 {
 		var same bool
-		err = s.tx.QueryRow(ctx, `SELECT organization_id=$2 AND location_id=$3 AND template_version_id=$4 AND performed_by=$5 AND client_operation_id=$6 AND client_created_at=$7
-			FROM checklist_runs WHERE id=$1`, v.ID, v.OrganizationID, v.LocationID, v.TemplateVersionID, a.ID, v.ClientOperationID, v.ClientCreatedAt).Scan(&same)
+		err = s.tx.QueryRow(ctx, `SELECT organization_id=$2 AND location_id=$3 AND template_version_id=$4 AND performed_by=$5 AND client_operation_id=$6 AND client_created_at=$7 AND COALESCE(assignment_id::text,'')=$8
+			FROM checklist_runs WHERE id=$1`, v.ID, v.OrganizationID, v.LocationID, v.TemplateVersionID, a.ID, v.ClientOperationID, v.ClientCreatedAt, v.AssignmentID).Scan(&same)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.Run{}, domain.ErrNotFound
 		}
@@ -208,10 +212,10 @@ func (s *store) Run(ctx context.Context, a domain.Actor, org, runID string, lock
 	}
 	var score *string
 	err = s.tx.QueryRow(ctx, `SELECT id::text,organization_id,location_id::text,template_version_id::text,performed_by,
-		client_operation_id::text,client_created_at,status,row_version,compliance_percent::text,submitted_at,created_at
+		client_operation_id::text,client_created_at,status,row_version,compliance_percent::text,submitted_at,created_at,COALESCE(assignment_id::text,'')
 		FROM checklist_runs WHERE organization_id=$1 AND id=$2`+lockClause, org, runID).Scan(
 		&v.ID, &v.OrganizationID, &v.LocationID, &v.TemplateVersionID, &v.PerformedBy,
-		&v.ClientOperationID, &v.ClientCreatedAt, &v.Status, &v.RowVersion, &score, &v.SubmittedAt, &v.CreatedAt)
+		&v.ClientOperationID, &v.ClientCreatedAt, &v.Status, &v.RowVersion, &score, &v.SubmittedAt, &v.CreatedAt, &v.AssignmentID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return v, domain.ErrNotFound
 	}

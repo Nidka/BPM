@@ -41,8 +41,9 @@ Dispositivos, invitaciones, edición y desactivación siguen pendientes.
 ## 2. Checklists y sincronización offline
 
 Estado: primera versión vertical implementada (plantilla publicada, catálogo,
-borrador, respuestas y envío) y documentada en `CHECKLISTS.md`. Asignaciones,
-versiones posteriores y evidencias siguen pendientes. El historial paginado de
+borrador, respuestas y envío) y documentada en `CHECKLISTS.md`. Programación
+por sede/frecuencia y revisión única del período implementadas. Turnos, versiones
+posteriores y evidencias siguen pendientes. El historial paginado de
 ejecuciones y la separación de roles se describen en CHECKLISTS.md.
 El catálogo publicado ya tiene paginación y detalle autorizado independiente.
 

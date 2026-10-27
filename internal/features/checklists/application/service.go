@@ -18,6 +18,9 @@ import (
 )
 
 type Store interface {
+	StartedRun(context.Context, string, string) (bool, error)
+	RunSchedule(context.Context, domain.Actor, string, domain.Run) (domain.Assignment, error)
+	PeriodRuns(context.Context, string, []domain.AssignmentPeriod) (map[string]domain.AssignedRun, error)
 	RunHistory(context.Context, domain.Actor, string, pagination.Window, domain.HistoryFilter) ([]domain.RunSummary, error)
 	Actor(context.Context, string, string) (domain.Actor, error)
 	LocationAccess(context.Context, domain.Actor, string, string) error
@@ -35,9 +38,12 @@ type UnitOfWork interface {
 	Within(context.Context, func(Store) error) error
 }
 
-type Service struct{ work UnitOfWork }
+type Service struct {
+	work UnitOfWork
+	now  func() time.Time
+}
 
-func New(work UnitOfWork) *Service { return &Service{work: work} }
+func New(work UnitOfWork) *Service { return &Service{work: work, now: time.Now} }
 
 var uuid = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
@@ -128,18 +134,22 @@ func (s *Service) CreateTemplate(ctx context.Context, uid, org string, v domain.
 
 func (s *Service) CreateRun(ctx context.Context, uid, org string, v domain.Run) (domain.Run, error) {
 	fields := map[string]string{}
+	if v.AssignmentID != "" && !uuid.MatchString(v.AssignmentID) {
+		fields["assignmentId"] = "Selecciona un control programado válido."
+	}
 	for name, id := range map[string]string{"id": v.ID, "locationId": v.LocationID, "templateVersionId": v.TemplateVersionID, "clientOperationId": v.ClientOperationID} {
 		if !uuid.MatchString(id) {
 			fields[name] = "Ingresa un UUID válido."
 		}
 	}
-	if v.ClientCreatedAt.IsZero() || v.ClientCreatedAt.After(time.Now().Add(5*time.Minute)) {
+	if v.ClientCreatedAt.IsZero() || v.ClientCreatedAt.After(s.now().Add(5*time.Minute)) {
 		fields["clientCreatedAt"] = "Ingresa una fecha válida que no esté en el futuro."
 	}
 	if len(fields) > 0 {
 		return domain.Run{}, &domain.ValidationError{Fields: fields}
 	}
 	v.ClientCreatedAt = v.ClientCreatedAt.UTC().Truncate(time.Microsecond)
+	v.AssignmentID = strings.ToLower(v.AssignmentID)
 	v.OrganizationID = org
 	v.PerformedBy = uid
 	v.Status = "DRAFT"
@@ -154,6 +164,31 @@ func (s *Service) CreateRun(ctx context.Context, uid, org string, v domain.Run) 
 		}
 		if e = db.LocationAccess(ctx, actor, org, v.LocationID); e != nil {
 			return e
+		}
+		exists, e := db.StartedRun(ctx, org, v.ID)
+		if e != nil {
+			return e
+		}
+		if !exists {
+			schedule, scheduleErr := db.RunSchedule(ctx, actor, org, v)
+			if scheduleErr != nil {
+				return scheduleErr
+			}
+			// La fecha del registro y su período usan el mismo instante, tras obtener el bloqueo.
+			v.CreatedAt = s.now().UTC().Truncate(time.Microsecond)
+			if schedule.ID != "" {
+				period, periodErr := schedule.PeriodAt(v.CreatedAt)
+				if periodErr != nil {
+					return periodErr
+				}
+				started, readErr := db.PeriodRuns(ctx, org, []domain.AssignmentPeriod{period})
+				if readErr != nil {
+					return readErr
+				}
+				if _, found := started[schedule.ID]; found {
+					return domain.ErrAssignmentStarted
+				}
+			}
 		}
 		v, e = db.CreateRun(ctx, actor, v)
 		return e

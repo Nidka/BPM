@@ -27,12 +27,21 @@ func (brokenWork) Within(context.Context, func(application.Store) error) error {
 	return errors.New("postgres://private:secret@internal/db")
 }
 
+func (brokenWork) WithinAssignments(context.Context, func(application.AssignmentStore) error) error {
+	return errors.New("private storage error")
+}
+
 func TestProtectedChecklistRoutes(t *testing.T) {
 	for _, tc := range []struct {
 		name, method, path, body, token, code string
 		verified, idempotency                 bool
 		status                                int
 	}{
+		{"assignment missing token", "GET", "/organizations/org/checklist-assignments", "", "", "UNAUTHENTICATED", true, false, 401},
+		{"assignment invalid query", "GET", "/organizations/org/checklist-assignments?role=ADMIN", "", "token", "INVALID_PAGINATION", true, false, 400},
+		{"assignment unknown field", "POST", "/organizations/org/checklist-assignments", `{"actor":"admin"}`, "token", "INVALID_REQUEST", true, false, 400},
+		{"assignment invalid body", "POST", "/organizations/org/checklist-assignments", `{}`, "token", "VALIDATION_ERROR", true, false, 422},
+		{"assignment storage unavailable", "GET", "/organizations/org/checklist-assignments", "", "token", "INTERNAL_ERROR", true, false, 500},
 		{"missing token", "GET", "/organizations/org/checklists", "", "", "UNAUTHENTICATED", true, false, 401},
 		{"history missing token", "GET", "/organizations/org/checklist-runs", "", "", "UNAUTHENTICATED", true, false, 401},
 		{"history repeated scope", "GET", "/organizations/org/checklist-runs?scope=mine&scope=team", "", "token", "INVALID_PAGINATION", true, false, 400},
@@ -50,7 +59,7 @@ func TestProtectedChecklistRoutes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			router := chi.NewRouter()
-			New(application.New(brokenWork{}), logger).Register(router, middleware.Authenticate(verifier{tc.verified}))
+			New(application.New(brokenWork{}), application.NewAssignments(brokenWork{}), logger).Register(router, middleware.Authenticate(verifier{tc.verified}))
 			request := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
 			request.Header.Set("Content-Type", "application/json")
 			if tc.token != "" {

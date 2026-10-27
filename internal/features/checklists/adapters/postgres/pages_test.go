@@ -73,7 +73,7 @@ func testCatalogPagination(t *testing.T, ctx context.Context, pool *pgxpool.Pool
 		t.Fatal(e)
 	}
 	router := chi.NewRouter()
-	checklisthttp.New(service, slog.New(slog.NewTextHandler(io.Discard, nil))).Register(router, middleware.Authenticate(pageVerifier{}))
+	checklisthttp.New(service, application.NewAssignments(New(pool)), slog.New(slog.NewTextHandler(io.Discard, nil))).Register(router, middleware.Authenticate(pageVerifier{}))
 	for _, test := range []struct {
 		path   string
 		status int

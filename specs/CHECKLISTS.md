@@ -49,8 +49,8 @@ durante al menos 24 horas; no deben reciclarse.
 
 ## Límites conscientes de esta primera base
 
-- Aún no hay edición de plantilla ni publicación de versión 2, asignaciones
-  programadas. No hay endpoint de archivo.
+- Aún no hay edición de plantilla ni publicación de versión 2. Las asignaciones
+  por sede y frecuencia se describen abajo. No hay endpoint de archivo.
 - La carga de evidencias privadas en R2 será otro módulo. Hasta entonces la API
   no permite crear ítems con evidencia obligatoria. Si existiera uno en datos
   previos, se rechaza el envío de una respuesta fallida para no omitir el control.
@@ -105,9 +105,61 @@ el acceso aunque se conserve un cursor anterior.
 La consulta del historial no inicia otra revisión ni escribe auditoría de
 ejecución. Cada revisión nueva sigue siendo una operación explícita con UUID y
 fecha: varias revisiones de la misma plantilla son registros distintos, no
-duplicados del reintento idempotente. No se impone frecuencia de revisión sin
-un contrato de asignación programada. La exportación RF-17 continúa pendiente.
+duplicados del reintento idempotente. Las revisiones libres siguen permitidas donde no existe programación activa;
+las programadas aplican las reglas del siguiente apartado. La exportación RF-17 continúa pendiente.
 
 Pruebas: 137 revisiones, fechas coincidentes, paginación sin duplicados, filtros,
 tenant y sede ajenos, rol WORKER, revocación entre páginas y permisos de escritura
 por rol. PostgreSQL temporal exclusivo `bpm_test`; no hay migraciones nuevas.
+
+## Programación por sede y período
+
+ADMIN/SUPER_ADMIN programa una plantilla publicada en una sede activa; CHEF
+consulta únicamente sus sedes y ejecuta; WORKER no consulta ni ejecuta estos
+controles. Se usan `checklist_assignments` y `checklist_runs.assignment_id` de V1,
+sin migración ni cambio de credenciales. No se habilitan turnos ni asignación a
+una persona: el esquema actual expresa sede y frecuencia, con ejecución CHEF.
+
+| Método | Ruta | Permiso |
+|---|---|---|
+| GET | `/checklist-assignments` | ADMIN/SUPER_ADMIN o CHEF en sus sedes |
+| GET | `/checklist-assignments/{assignmentID}` | mismo alcance; también inactivas |
+| POST | `/checklist-assignments` | ADMIN/SUPER_ADMIN |
+| POST | `/checklist-assignments/{assignmentID}/deactivate` | ADMIN/SUPER_ADMIN |
+
+Lista activa paginada con pageSize/pageToken/query por plantilla o sede. Devuelve
+período vigente y resumen de revisión mediante consulta por lote, sin N+1. Crear
+recibe UUID estable, templateId, locationId, frequency y dueTime opcional HH:MM.
+GET/POST detalle no aceptan query; desactivar recibe `{}`. Errores públicos y
+contrato completo en OpenAPI.
+
+Se permite una programación activa por plantilla/sede. Crear otra devuelve
+409 RESOURCE_CONFLICT. El mismo ID/cuerpo recupera el alta sin otra auditoría;
+cambiar el cuerpo con ese ID da conflicto. Desactivar es idempotente y conserva
+historial, revisiones y respuestas; un borrador ya iniciado puede terminarse.
+
+Períodos según zona IANA de la sede, con fin excluyente: ONCE desde el alta sin
+fin; DAILY desde medianoche local; WEEKLY lunes a lunes; MONTHLY del primer día
+al siguiente mes. Se usa calendario local, incluyendo cambios de horario, y el
+reloj del servidor después del bloqueo transaccional. La hora opcional es una
+referencia visible: no retrasa el inicio ni representa una alerta programada.
+Las notificaciones y la programación por turno siguen pendientes.
+
+El alta de revisión incluye assignmentId y exige la misma sede y última versión
+publicada. Si existe programación activa y se omite el ID se devuelve 409
+ASSIGNMENT_REQUIRED; otro ID de revisión en el período devuelve 409
+ASSIGNMENT_ALREADY_STARTED. Todos los chefs de la sede comparten ese período;
+solo el ejecutor edita su borrador. El ID de revisión original con cuerpo idéntico
+se recupera aunque cambie el período o se detenga la programación. La fecha cliente
+no permite elegir un período pasado. Una revisión sin programación sigue siendo
+posible únicamente donde no exista asignación activa para esa plantilla/sede.
+
+Crear/desactivar bloquea la plantilla; iniciar bloquea plantilla y programación
+en ese orden. Se serializan altas simultáneas y se genera auditoría en la misma
+transacción. No hay tarea periódica que cree revisiones ni cierre automático.
+
+Pruebas: límites y roles, período diario/semanal/mensual/ONCE, zona local y DST,
+137 asignaciones con cursores/búsqueda, tenant/sede ajenos y revocación, alta
+idéntica, conflicto de programación, fecha cliente manipulada, guardado después
+de desactivar y dos clientes concurrentes: un solo borrador por período.
+PostgreSQL aislado bpm_test, vet y race; sin datos de prueba en producción.

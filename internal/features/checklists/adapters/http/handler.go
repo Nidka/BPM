@@ -16,12 +16,13 @@ import (
 )
 
 type Handler struct {
-	service *application.Service
-	logger  *slog.Logger
+	service     *application.Service
+	assignments *application.Assignments
+	logger      *slog.Logger
 }
 
-func New(service *application.Service, logger *slog.Logger) *Handler {
-	return &Handler{service: service, logger: logger}
+func New(service *application.Service, assignments *application.Assignments, logger *slog.Logger) *Handler {
+	return &Handler{service: service, assignments: assignments, logger: logger}
 }
 
 type itemDTO struct {
@@ -88,6 +89,7 @@ func (v answerDTO) domain() domain.Answer {
 }
 
 type runDTO struct {
+	AssignmentID      string      `json:"assignmentId,omitempty"`
 	PerformedByName   string      `json:"performedByName"`
 	TemplateName      string      `json:"templateName"`
 	LocationName      string      `json:"locationName"`
@@ -116,13 +118,17 @@ func run(v domain.Run) runDTO {
 	for _, a := range v.Answers {
 		answers = append(answers, answerDTO{a.ItemID, a.ComplianceResult, a.TextValue, a.Observation, a.NumericValue})
 	}
-	return runDTO{v.PerformedByName, v.TemplateName, v.LocationName, v.CreatedAt, v.ID, v.OrganizationID, v.LocationID, v.TemplateVersionID, v.PerformedBy,
+	return runDTO{v.AssignmentID, v.PerformedByName, v.TemplateName, v.LocationName, v.CreatedAt, v.ID, v.OrganizationID, v.LocationID, v.TemplateVersionID, v.PerformedBy,
 		v.ClientOperationID, v.ClientCreatedAt, v.Status, v.RowVersion, v.CompliancePercent, v.SubmittedAt, items, answers}
 }
 
 func (h *Handler) Register(r chi.Router, auth func(http.Handler) http.Handler) {
 	r.Group(func(r chi.Router) {
 		r.Use(auth)
+		r.Get("/organizations/{organizationID}/checklist-assignments", h.assignmentList)
+		r.Get("/organizations/{organizationID}/checklist-assignments/{assignmentID}", h.assignmentGet)
+		r.Post("/organizations/{organizationID}/checklist-assignments", h.assignmentCreate)
+		r.Post("/organizations/{organizationID}/checklist-assignments/{assignmentID}/deactivate", h.assignmentDeactivate)
 		r.Get("/organizations/{organizationID}/checklists", h.catalog)
 		r.Get("/organizations/{organizationID}/checklists/{templateID}", h.getTemplate)
 		r.Post("/organizations/{organizationID}/checklists", h.createTemplate)
@@ -142,6 +148,10 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	id := middleware.RequestIDFromContext(r.Context())
 	var validation *domain.ValidationError
 	switch {
+	case errors.Is(err, domain.ErrAssignmentRequired):
+		response.Error(w, 409, id, response.APIError{Code: "ASSIGNMENT_REQUIRED", Message: "Esta plantilla tiene un control programado para la sede. Ábrelo desde Control."})
+	case errors.Is(err, domain.ErrAssignmentStarted):
+		response.Error(w, 409, id, response.APIError{Code: "ASSIGNMENT_ALREADY_STARTED", Message: "El control de este período ya se inició. Consulta Control para retomarlo o ver su resultado."})
 	case errors.Is(err, pagination.ErrInvalid):
 		response.Error(w, 400, id, response.APIError{Code: "INVALID_PAGINATION", Message: "La página no es válida. Actualiza la lista y vuelve a intentar."})
 	case errors.As(err, &validation):
@@ -212,6 +222,7 @@ func (h *Handler) createRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
+		AssignmentID      string    `json:"assignmentId"`
 		ID                string    `json:"id"`
 		LocationID        string    `json:"locationId"`
 		TemplateVersionID string    `json:"templateVersionId"`
@@ -222,7 +233,7 @@ func (h *Handler) createRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v, err := h.service.CreateRun(r.Context(), uid, chi.URLParam(r, "organizationID"), domain.Run{
-		ID: input.ID, LocationID: input.LocationID, TemplateVersionID: input.TemplateVersionID,
+		AssignmentID: input.AssignmentID, ID: input.ID, LocationID: input.LocationID, TemplateVersionID: input.TemplateVersionID,
 		ClientOperationID: input.ClientOperationID, ClientCreatedAt: input.ClientCreatedAt})
 	if err != nil {
 		h.fail(w, r, err)

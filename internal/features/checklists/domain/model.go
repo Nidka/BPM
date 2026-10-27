@@ -33,6 +33,7 @@ type Item struct {
 }
 
 type Run struct {
+	AssignmentID                                                   string
 	TemplateName, LocationName, PerformedByName                    string
 	CreatedAt                                                      time.Time
 	ID, OrganizationID, LocationID, TemplateVersionID, PerformedBy string
